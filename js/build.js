@@ -60,7 +60,7 @@ map.on('style.load', function(e) {
         map.addSource('overlayDataSource', overlayDataSource);
         map.addLayer(overlayData);
 
-        addMapboxLayers(map, ['data-review', 'mapillary','toronto']);
+        addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
 
         getOverlayFeatures();
 
@@ -91,9 +91,12 @@ map.on('style.load', function(e) {
             }
 
             function overlayFeatureForm(feature) {
+
+                var josm_button = createHTML(map, 'open-obj-in-josm-button');
+
                 var formOptions = "<div class='radio-pill pill pad2y clearfix' style='width:350px'><input id='valid' type='radio' name='review' value='valid' checked='checked'><label for='valid' class='col4 button short icon check fill-green'>Valid</label><input id='redundant' type='radio' name='review' value='redundant'><label for='redundant' class='col4 button short icon check fill-mustard'>Redundant</label><input id='invalid' type='radio' name='review' value='invalid'><label for='invalid' class='col4 button icon short check fill-red'>Invalid</label></div>";
                 var formReviewer = "<fieldset><label>Reviewed by: <span id='reviewer' style='padding:5px;background-color:#eee'></span></label><input type='text' name='reviewer' placeholder='OSM username'></input></fieldset>"
-                var popupHTML = "<h3>" + "Review Data" + "</h3><form>" + formOptions + formReviewer + "<a id='save-review' class='button col4' href='#'>Save</a><a id='delete-review' class='button quiet fr col4' href='#' style=''>Delete</a></form>";
+                var popupHTML = "<h3>" + "Review Data " + josm_button + "</h3><form>" + formOptions + formReviewer + "<a id='save-review' class='button col4' href='#'>Save</a><a id='delete-review' class='button quiet fr col4' href='#' style=''>Delete</a></form>";
                 var popup = new mapboxgl.Popup()
                     .setLngLat(e.lngLat)
                     .setHTML(popupHTML)

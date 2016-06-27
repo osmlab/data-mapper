@@ -114,11 +114,20 @@ function openInJOSM(map, opts) {
 }
 
 
-function createHTML(type, opts) {
+function createHTML(map, type, opts) {
     var HTML, url, obj_type;
     if ('open-obj-in-josm-button') {
+        if (opts){
         node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
         url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
+      } else {
+        var bounds = map.getBounds();
+        var top = bounds.getNorth();
+        var bottom = bounds.getSouth();
+        var left = bounds.getWest();
+        var right = bounds.getEast();
+        url = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
+      }
     }
     HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
     return HTML;
@@ -146,8 +155,102 @@ var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us"
 // },
 
 var mapboxLayers = {
+  "osm-navigation": {
+    "groups": [{
+      "name": "turn-restrictions",
+      "source": {
+          type: 'vector',
+          url: 'mapbox://planemad.turnrestrictions'
+      },
+      "layers": [{
+          "id": "noturn",
+          "type": "line",
+          "source-layer": "turnrestrictions",
+          "minzoom": 13,
+          "interactive": true,
+          "layout": {
+              "visibility": "visible",
+              "line-cap": "round"
+          },
+          "paint": {
+              "line-color": "hsl(10, 96%, 53%)",
+              "line-width": 1
+          }
+      },{
+          "id": "noturn from",
+          "type": "line",
+          "source-layer": "turnrestrictions",
+          "interactive": true,
+          "filter": [
+              "==",
+              "relations_role",
+              "from"
+          ],
+          "layout": {
+              "visibility": "visible",
+              "line-cap": "round"
+          },
+          "paint": {
+              "line-color": "hsl(0, 51%, 77%)",
+              "line-opacity": 0.55,
+              "line-width": 4
+          }
+      },{
+          "id": "noturn via",
+          "type": "circle",
+          "source-layer": "turnrestrictions",
+          "interactive": true,
+          "filter": [
+              "all",
+              [
+                  "==",
+                  "$type",
+                  "Point"
+              ],
+              [
+                  "==",
+                  "relations_role",
+                  "via"
+              ]
+          ],
+          "layout": {
+              "visibility": "visible"
+          },
+          "paint": {
+              "circle-color": "hsl(10, 96%, 53%)",
+              "circle-radius": 3
+          }
+      }]
+    }]
+  },
     "toronto": {
         "groups": [{
+            "name": "centreline",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.dgman5ok'
+            },
+            "layers": [{
+                "id": "toronto-intersection-centreline",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-intersection-centreline",
+                "minzoom": 15,
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "hsl(307, 100%, 84%)",
+                    "line-width": 1,
+                    "line-opacity": 1
+                }
+            }]
+        }, {
             "name": "restrictions",
             "source": {
                 type: 'vector',
