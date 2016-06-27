@@ -1,18 +1,21 @@
-var mapLayers = require('map-layers.js');
+// Mapbox Configuration
 var MapboxClient = require('mapbox/lib/services/datasets');
-var dataset = 'cip0lqsk4001s7nlwogm8rzeo';
-var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + dataset + '/';
+var datasetID = 'cipxubqqz0081hwks1vwhiir2';
+var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
 var mapboxAccessDatasetToken = 'sk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiY2lvdHNnd2xmMDBjb3VvbThmaXlsbnd5dCJ9.7Ui7o2K3U6flUzDGvYNZJw';
+var styleID = 'mapbox/light-v9';
+mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ';
 var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 
+// var mapLayers = require('map-layers');
 var reviewer;
 var _tmp = {};
 
-mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ';
+
 var map = new mapboxgl.Map({
-    container: 'map', // container id
-    style: 'mapbox://styles/planemad/cipqsuf2g000ldmnobna12vam', //stylesheet location
-    center: [77.64, 12.98], // starting position
+    container: 'map',
+    style: 'mapbox://styles/' + styleID,
+    center: [-79.38, 43.65], // starting position
     zoom: 16, // starting zoom
     hash: true,
     attributionControl: false
@@ -68,7 +71,8 @@ map.on('style.load', function(e) {
 
                     ],
                     "type": "Point"
-                }
+                },
+
             };
 
             var clickedOverlayFeatures = map.queryRenderedFeatures([
@@ -85,9 +89,9 @@ map.on('style.load', function(e) {
             }
 
             function overlayFeatureForm(feature) {
-                var formOptions = "<div class='radio-pill pill pad1y clearfix'><input id='valid' type='radio' name='review' value='tree' checked='checked'><label for='tree' class='short button icon check fill-green'>tree</label><input id='sapling' type='radio' name='review' value='sapling'><label for='sapling' class='short button icon check fill-red'>sapling</label></div>";
-                var formReviewer = "<fieldset><label>Contributed by: <span id='reviewer' style='padding:5px;background-color:#eee'></span></label><input type='text' name='reviewer' placeholder='name'></input></fieldset>"
-                var popupHTML = "<form>" + formOptions + formReviewer + "<a id='updateOverlayFeature' class='button col4' href='#'>Save</a><a id='deleteOverlayFeature' class='button quiet fr col4' href='#' style=''>Delete</a></form>";
+                var formOptions = "<div class='radio-pill pill pad2y clearfix' style='width:350px'><input id='valid' type='radio' name='review' value='valid' checked='checked'><label for='valid' class='col4 button short icon check fill-green'>Valid</label><input id='redundant' type='radio' name='review' value='redundant'><label for='redundant' class='col4 button short icon check fill-mustard'>Redundant</label><input id='invalid' type='radio' name='review' value='invalid'><label for='invalid' class='col4 button icon short check fill-red'>Invalid</label></div>";
+                var formReviewer = "<fieldset><label>Reviewed by: <span id='reviewer' style='padding:5px;background-color:#eee'></span></label><input type='text' name='reviewer' placeholder='OSM username'></input></fieldset>"
+                var popupHTML = "<h3>" + "Review Data" + "</h3><form>" + formOptions + formReviewer + "<a id='save-review' class='button col4' href='#'>Save</a><a id='delete-review' class='button quiet fr col4' href='#' style=''>Delete</a></form>";
                 var popup = new mapboxgl.Popup()
                     .setLngLat(e.lngLat)
                     .setHTML(popupHTML)
@@ -95,12 +99,13 @@ map.on('style.load', function(e) {
 
                 // Show existing status if available
                 if (feature) {
-                    $("input[name=review][value=" + feature.properties["natural"] + "]").prop('checked', true);
-                    $("#reviewer").html(feature.properties["contributed_by"]);
+                    $("input[name=review][value=" + feature.properties["status"] + "]").prop('checked', true);
+                    $("#reviewer").html(feature.properties["reviewer"]);
                     newOverlayFeature = feature;
                     newOverlayFeature["id"] = feature.properties["id"];
                     console.log(feature);
                 } else {
+                    newOverlayFeature.properties["name"] = "restriction";
                     newOverlayFeature.geometry.coordinates = e.lngLat.toArray();
                 }
 
@@ -110,19 +115,19 @@ map.on('style.load', function(e) {
                 }
 
                 // Update dataset with feature status on clicking save
-                document.getElementById("updateOverlayFeature").onclick = function() {
-                    newOverlayFeature.properties["natural"] = $("input[name=review]:checked").val();
+                document.getElementById("save-review").onclick = function() {
+                    newOverlayFeature.properties["status"] = $("input[name=review]:checked").val();
                     reviewer = $("input[name=reviewer]").val();
-                    newOverlayFeature.properties["contributed_by"] = reviewer;
+                    newOverlayFeature.properties["reviewed_by"] = reviewer;
                     popup.remove();
-                    mapbox.insertFeature(newOverlayFeature, dataset, function(err, response) {
+                    mapbox.insertFeature(newOverlayFeature, datasetID, function(err, response) {
                         console.log(response);
                         overlayFeatureCollection.features = overlayFeatureCollection.features.concat(response);
                         overlayDataSource.setData(overlayFeatureCollection);
                     });
                 };
                 // Delete feature on clicking delete
-                document.getElementById("deleteOverlayFeature").onclick = function() {
+                document.getElementById("delete-review").onclick = function() {
                     popup.remove();
                     mapbox.deleteFeature(newOverlayFeature["id"], dataset, function(err, response) {
                         console.log(response);

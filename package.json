@@ -1,23 +1,24 @@
 {
   "name": "data-mapper",
   "version": "0.0.1",
-  "description": "A map style to explore and improve navigation data on OpenStreetMap",
-  "main": "index.js",
+  "description": "A map tool to help review and add external data into OpenStreetMap",
+  "main": "js/index.js",
   "scripts": {
     "start": "npm run build & jekyll serve",
-    "build": "watchify index.js -o build.js -v",
+    "build": "watchify js/index.js -o js/build.js -v",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "osm-navigation-map"
+    "url": "data-mapper"
   },
   "keywords": [
     "osm",
-    "navigation",
+    "data",
+    "import",
     "map"
   ],
-  "author": "Mapbox",
+  "author": "Arun Ganesh",
   "license": "ISC",
   "dependencies": {
     "mapbox": "^0.12.0",

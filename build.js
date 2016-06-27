@@ -1,1 +1,0 @@
-console.error("Error: Cannot find module 'map-layers.js' from '/Users/arun/GitHub/osmlab/navigation-map'");
