@@ -114,12 +114,351 @@ function openInJOSM(map, opts) {
 }
 
 
-function createHTML(type, opts){
-  var HTML, url, obj_type;
-  if('open-obj-in-josm-button'){
-    node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
-    url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
-  }
-  HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
-  return HTML;
+function createHTML(type, opts) {
+    var HTML, url, obj_type;
+    if ('open-obj-in-josm-button') {
+        node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
+        url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
+    }
+    HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
+    return HTML;
+}
+
+// Configure layer names for base map for proper layer positioning
+var mapboxLayerIDs = {
+    "water": "water",
+    "label": "poi-scalerank3",
+    "roads": "tunnel-street-low"
+}
+
+// Configure filters for some layers
+var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us", "regulatory--no-right-turn--us", "regulatory--no-straight-through--us", "regulatory--no-u-turn--us", "regulatory--no-left-or-u-turn--us", "regulatory--no-left-turn--ca", "regulatory--no-right-turn--ca", "regulatory--no-straight-through--ca", "regulatory--no-u-turn--ca", "regulatory--no-left-or-u-turn--ca"]
+
+// Configure common data layers
+// "template-name": {
+//   "groups": [{
+//     "name": "group-name",
+//     "source": {},
+//     "layers": [{
+//       "name": "layer-name",
+//     }]
+//   }]
+// },
+
+var mapboxLayers = {
+    "toronto": {
+        "groups": [{
+            "name": "restrictions",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.cymhxqyx'
+            },
+            "layers": [{
+                "id": "toronto-turn-restrictions copy",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "circle-color": "hsl(0, 0%, 25%)",
+                    "circle-radius": 4,
+                    "circle-opacity": {
+                        "base": 1,
+                        "stops": [
+                            [
+                                14,
+                                1
+                            ],
+                            [
+                                19,
+                                0
+                            ]
+                        ]
+                    }
+                }
+            }, {
+                "id": "toronto-turn-restrictions type left",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "LEFT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(0, 100%, 49%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions type right",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "RIGHT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(43, 100%, 50%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions type straight",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "STRAIGHT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(98, 100%, 51%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 100%, 50%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-left",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "LEFT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 100%, 49%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-right",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "RIGHT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(43, 100%, 50%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-straight",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "STRAIGHT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(98, 100%, 51%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions label",
+                "type": "symbol",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "text-size": 12,
+                    "text-allow-overlap": false,
+                    "icon-image": "triangle-15",
+                    "text-ignore-placement": false,
+                    "symbol-spacing": 2,
+                    "text-font": [
+                        "Clan Offc Pro Medium",
+                        "Arial Unicode MS Regular"
+                    ],
+                    "icon-rotate": -269,
+                    "icon-allow-overlap": false,
+                    "symbol-placement": "line",
+                    "text-justify": "center",
+                    "text-offset": [
+                        0, -0.5
+                    ],
+                    "icon-optional": false,
+                    "text-rotation-alignment": "map",
+                    "icon-size": 0.6,
+                    "text-anchor": "bottom",
+                    "text-field": "NO {TURN_DIR_C}"
+                },
+                "paint": {
+                    "text-color": "hsl(0, 1%, 40%)",
+                    "text-halo-color": "hsl(0, 0%, 100%)",
+                    "text-halo-width": 2
+                }
+            }]
+        }]
+    },
+    "mapillary": {
+        "groups": [{
+            "name": "traffic-signs",
+            "source": {
+                "type": "vector",
+                "tiles": [
+                    // "https://crossorigin.me/http://mapillary-vector.mapillary.io/tiles/{z}/{x}/{y}.mapbox?ors=key,l,package,value,validated,image_key,user,score,obj,rect",
+                    "http://mapillary-vector.mapillary.io/tiles/{z}/{x}/{y}.mapbox?ors=key,l,package,value,validated,image_key,user,score,obj,rect",
+                ],
+                "minzoon": 14,
+                "maxzoom": 18
+            },
+            "layers": [{
+                "name": "circle",
+                "type": "circle",
+                'source-layer': 'ors',
+                "paint": {
+                    "circle-radius": 2,
+                    "circle-color": "grey"
+                }
+            }, {
+                "name": "turn-restriction",
+                "type": "circle",
+                'source-layer': 'ors',
+                "paint": {
+                    "circle-radius": 4,
+                    "circle-color": "#05d107"
+                },
+                "filter": mapillaryRestrictionsFilter
+            }, {
+                "name": "turn-restriction-label",
+                "type": "symbol",
+                "source-layer": "ors",
+                "layout": {
+                    "text-field": "{value}",
+                    "text-size": 8,
+                    "text-offset": [0, 2]
+                },
+                "paint": {
+                    "text-color": "black",
+                    "text-halo-color": "white",
+                    "text-halo-width": 1
+                }
+            }]
+        }, {
+            "name": "coverage",
+            "source": {
+                "type": "vector",
+                "tiles": [
+                    "https://d2munx5tg0hw47.cloudfront.net/tiles/{z}/{x}/{y}.mapbox"
+                ],
+                "minzoom": 2,
+                "maxzoom": 16
+            },
+            "layers": [{
+                "name": "line",
+                "type": "line",
+                "source-layer": "mapillary-sequences",
+                "paint": {
+                    "line-color": 'grey',
+                    "line-width": 1,
+                    "line-opacity": 0.3
+                }
+            }]
+        }]
+    }
+}
+
+// Add commonly used data layers and styles to a Mapbox map
+function addMapboxLayers(map, layers) {
+
+    for (var i in layers) {
+        if (layers[i] in mapboxLayers) {
+
+            // Add the defined source and layers for each group
+            var groupName = layers[i];
+
+            for (var j in mapboxLayers[layers[i]].groups) {
+
+                // Add the group source
+                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
+                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
+
+                // Add the group style layers
+                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
+
+                    // Generate unique layer ID and source
+                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
+                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
+                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
+                    }
+                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
+
+                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
+
+                }
+            }
+        }
+    }
+
 }

@@ -59,6 +59,9 @@ map.on('style.load', function(e) {
 
         map.addSource('overlayDataSource', overlayDataSource);
         map.addLayer(overlayData);
+
+        addMapboxLayers(map, ['data-review', 'mapillary','toronto']);
+
         getOverlayFeatures();
 
         map.on('click', function(e) {
@@ -76,11 +79,9 @@ map.on('style.load', function(e) {
 
             };
 
-            var clickedOverlayFeatures = map.queryRenderedFeatures([
-                [e.point.x - 5, e.point.y - 5],
-                [e.point.x + 5, e.point.y + 5]
-            ], {
-                layers: ['overlayData']
+            var clickedOverlayFeatures = queryLayerFeatures(map, e.point, {
+                layers: ['overlayData'],
+                radius: 10
             });
             if (clickedOverlayFeatures.length) {
                 overlayFeatureForm(clickedOverlayFeatures[0]);
@@ -101,10 +102,10 @@ map.on('style.load', function(e) {
                 // Show existing status if available
                 if (feature) {
                     $("input[name=review][value=" + feature.properties["status"] + "]").prop('checked', true);
-                    $("#reviewer").html(feature.properties["reviewer"]);
+                    $("#reviewer").html(feature.properties["reviewed_by"]);
                     newOverlayFeature = feature;
                     newOverlayFeature["id"] = feature.properties["id"];
-                    console.log(feature);
+                    console.log("Existing feature", feature);
                 } else {
                     newOverlayFeature.properties["name"] = "restriction";
                     newOverlayFeature.geometry.coordinates = e.lngLat.toArray();
@@ -130,7 +131,7 @@ map.on('style.load', function(e) {
                 // Delete feature on clicking delete
                 document.getElementById("delete-review").onclick = function() {
                     popup.remove();
-                    mapbox.deleteFeature(newOverlayFeature["id"], dataset, function(err, response) {
+                    mapbox.deleteFeature(newOverlayFeature["id"], datasetID, function(err, response) {
                         console.log(response);
                     });
                 };
