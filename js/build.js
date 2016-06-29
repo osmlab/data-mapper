@@ -1,5 +1,6 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 // Mapbox Configuration
+var mapboxglUtils = require('./mapbox-gl-utils');
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
 var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
@@ -55,12 +56,10 @@ map.on('style.load', function(e) {
 
     function init() {
 
-        addGeolocationMarker();
-
         map.addSource('overlayDataSource', overlayDataSource);
         map.addLayer(overlayData);
 
-        addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
+        mapboxglUtils.addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
 
         getOverlayFeatures();
 
@@ -79,7 +78,7 @@ map.on('style.load', function(e) {
 
             };
 
-            var clickedOverlayFeatures = queryLayerFeatures(map, e.point, {
+            var clickedOverlayFeatures = mapboxglUtils.queryLayerFeatures(map, e.point, {
                 layers: ['overlayData'],
                 radius: 10
             });
@@ -92,7 +91,7 @@ map.on('style.load', function(e) {
 
             function overlayFeatureForm(feature) {
 
-                var josm_button = createHTML(map, 'open-obj-in-josm-button');
+                var josm_button = mapboxglUtils.createHTML(map, 'open-obj-in-josm-button');
 
                 var formOptions = "<div class='radio-pill pill pad2y clearfix' style='width:350px'><input id='valid' type='radio' name='review' value='valid' checked='checked'><label for='valid' class='col4 button short icon check fill-green'>Valid</label><input id='redundant' type='radio' name='review' value='redundant'><label for='redundant' class='col4 button short icon check fill-mustard'>Redundant</label><input id='invalid' type='radio' name='review' value='invalid'><label for='invalid' class='col4 button icon short check fill-red'>Invalid</label></div>";
                 var formReviewer = "<fieldset><label>Reviewed by: <span id='reviewer' style='padding:5px;background-color:#eee'></span></label><input type='text' name='reviewer' placeholder='OSM username'></input></fieldset>"
@@ -183,11 +182,39 @@ map.on('style.load', function(e) {
 
 });
 
+},{"./mapbox-gl-utils":2,"mapbox/lib/services/datasets":13}],2:[function(require,module,exports){
+// Utility functions to work with Mapbox GL JS maps
+// Requires mapbox-gl.js and jquery
+
+// API
+module.exports.addMapboxLayers = addMapboxLayers;
+module.exports.queryLayerFeatures = queryLayerFeatures;
+module.exports.createHTML = createHTML;
+
+// Dependencies
+//var Mapillary = require('mapillary-js');
+
+
 // Toggle visibility of a layer
 function toggle(id) {
     var currentState = map.getLayoutProperty(id, 'visibility');
     var nextState = currentState === 'none' ? 'visible' : 'none';
     map.setLayoutProperty(id, 'visibility', nextState);
+}
+
+// Hide all except one layer from a group
+function showOnlyLayers(toggleLayers, showLayerItem) {
+    for (var layerItem in toggleLayers) {
+        for (var layer in toggleLayers[layerItem].layers) {
+            if (showLayerItem == layerItem)
+                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'visible');
+            else
+                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'none');
+        }
+    }
+    // Highlight menu items
+    $('.toggles a').removeClass('active');
+    $('#' + showLayerItem).addClass('active');
 }
 
 // Toggle a set of filters for a set of layers
@@ -212,37 +239,553 @@ function toggleLayerFilters(layerItems, filterItem) {
     }
 }
 
-function addGeolocationMarker() {
-    map.addSource('single-point', {
-        "type": "geojson",
-        "data": {
-            "type": "FeatureCollection",
-            "features": []
+// Parse the toggleFilters to build the compound filter arrays
+function parseToggleFilters() {
+    for (var filterItem in toggleFilters) {
+
+        var parsedFilter = new Array();
+        parsedFilter.push(toggleFilters[filterItem]['filter-mode']);
+
+        for (var value in toggleFilters[filterItem]['filter-values']) {
+            var filter = new Array();
+            filter.push(toggleFilters[filterItem]['filter-compare'][0], toggleFilters[filterItem]['filter-compare'][1], toggleFilters[filterItem]['filter-values'][value]);
+            parsedFilter.push(filter);
         }
-    });
 
-    map.addLayer({
-        "id": "point",
-        "source": "single-point",
-        "type": "circle",
-        "paint": {
-            "circle-radius": 10,
-            "circle-color": "#007cbf"
-        }
-    });
-
-    // Listen for the `geocoder.input` event that is triggered when a user
-    // makes a selection and add a marker that matches the result.
-    geolocate.on('geolocate', function(ev) {
-        console.log(e);
-    });
-
-    map.on('geolocate', function(e) {
-        console.log(e);
-    });
+        toggleFilters[filterItem]['filter'] = parsedFilter;
+    }
 }
 
-},{"mapbox/lib/services/datasets":12}],2:[function(require,module,exports){
+// Merge two GL layer filters into one
+function mergeLayerFilters(existingFilter, mergeFilter) {
+    var newFilter = new Array();
+
+    // If the layer has a simple single filter
+    if (existingFilter[0] == '==') {
+        newFilter.push("all", existingFilter, mergeFilter)
+    }
+
+    return newFilter;
+}
+
+// Return a square bbox of pixel coordinates from a given x,y point
+function pixelPointToSquare(point, width) {
+    var pointToSquare = [
+        [point.x - width / 2, point.y - width / 2],
+        [point.x + width / 2, point.y + width / 2]
+    ];
+    return pointToSquare;
+}
+
+
+//
+// OpenStreetMap Utilities
+//
+
+// Return features near a paoint from a set of map layers
+function queryLayerFeatures(map, point, opts) {
+
+    var queryResults = map.queryRenderedFeatures(pixelPointToSquare(point, opts.radius), {
+        layers: opts.layers
+    });
+
+    return queryResults;
+
+}
+
+//Open map location in JOSM
+function openInJOSM(map, opts) {
+    var bounds = map.getBounds();
+    var top = bounds.getNorth();
+    var bottom = bounds.getSouth();
+    var left = bounds.getWest();
+    var right = bounds.getEast();
+    // var josmUrl = 'https://127.0.0.1:8112/load_and_zoom?left='+left+'&right='+right+'&top='+top+'&bottom='+bottom;
+    var josmUrl = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
+    $.ajax(josmUrl, function() {});
+}
+
+
+function createHTML(map, type, opts) {
+    var HTML, url, obj_type;
+    if ('open-obj-in-josm-button') {
+        if (opts) {
+            node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
+            url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
+        } else {
+            var bounds = map.getBounds();
+            var top = bounds.getNorth();
+            var bottom = bounds.getSouth();
+            var left = bounds.getWest();
+            var right = bounds.getEast();
+            url = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
+        }
+    }
+    HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
+    return HTML;
+}
+
+
+// Configure layer names for base map for proper layer positioning
+var mapboxLayerIDs = {
+    "water": "water",
+    "label": "poi-scalerank3",
+    "roads": "tunnel-street-low"
+}
+
+// Configure filters for some layers
+var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us", "regulatory--no-right-turn--us", "regulatory--no-straight-through--us", "regulatory--no-u-turn--us", "regulatory--no-left-or-u-turn--us", "regulatory--no-left-turn--ca", "regulatory--no-right-turn--ca", "regulatory--no-straight-through--ca", "regulatory--no-u-turn--ca", "regulatory--no-left-or-u-turn--ca"]
+
+// Configure common data layers
+// "template-name": {
+//   "groups": [{
+//     "name": "group-name",
+//     "source": {},
+//     "layers": [{
+//       "name": "layer-name",
+//     }]
+//   }]
+// },
+
+var mapboxLayers = {
+    "osm-navigation": {
+        "groups": [{
+            "name": "turn-restrictions",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.turnrestrictions'
+            },
+            "layers": [{
+                "id": "noturn",
+                "type": "line",
+                "source-layer": "turnrestrictions",
+                "minzoom": 13,
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "hsl(10, 96%, 53%)",
+                    "line-width": 1
+                }
+            }, {
+                "id": "noturn from",
+                "type": "line",
+                "source-layer": "turnrestrictions",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "relations_role",
+                    "from"
+                ],
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 51%, 77%)",
+                    "line-opacity": 0.55,
+                    "line-width": 4
+                }
+            }, {
+                "id": "noturn via",
+                "type": "circle",
+                "source-layer": "turnrestrictions",
+                "interactive": true,
+                "filter": [
+                    "all", [
+                        "==",
+                        "$type",
+                        "Point"
+                    ],
+                    [
+                        "==",
+                        "relations_role",
+                        "via"
+                    ]
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "circle-color": "hsl(10, 96%, 53%)",
+                    "circle-radius": 3
+                }
+            }]
+        }]
+    },
+    "toronto": {
+        "groups": [{
+            "name": "centreline",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.dgman5ok'
+            },
+            "layers": [{
+                "id": "toronto-intersection-centreline",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-intersection-centreline",
+                "minzoom": 15,
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "hsl(307, 100%, 84%)",
+                    "line-width": 1,
+                    "line-opacity": 1
+                }
+            }]
+        }, {
+            "name": "restrictions",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.cymhxqyx'
+            },
+            "layers": [{
+                "id": "toronto-turn-restrictions copy",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "circle-color": "hsl(0, 0%, 25%)",
+                    "circle-radius": 4,
+                    "circle-opacity": {
+                        "base": 1,
+                        "stops": [
+                            [
+                                14,
+                                1
+                            ],
+                            [
+                                19,
+                                0
+                            ]
+                        ]
+                    }
+                }
+            }, {
+                "id": "toronto-turn-restrictions type left",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "LEFT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(0, 100%, 49%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions type right",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "RIGHT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(43, 100%, 50%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions type straight",
+                "type": "circle",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "STRAIGHT"
+                ],
+                "layout": {},
+                "paint": {
+                    "circle-color": "hsl(98, 100%, 51%)",
+                    "circle-radius": 3,
+                    "circle-opacity": 0.8
+                }
+            }, {
+                "id": "toronto-turn-restrictions",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 100%, 50%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-left",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "LEFT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 100%, 49%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-right",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "RIGHT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(43, 100%, 50%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions no-straight",
+                "type": "line",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "TURN_DIR_C",
+                    "STRAIGHT"
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "line-color": "hsl(98, 100%, 51%)",
+                    "line-width": 2
+                }
+            }, {
+                "id": "toronto-turn-restrictions label",
+                "type": "symbol",
+                "metadata": {
+                    "mapbox:group": "1466615567526.5813"
+                },
+                "source": "composite",
+                "source-layer": "toronto-no-other-turns",
+                "interactive": true,
+                "layout": {
+                    "text-size": 12,
+                    "text-allow-overlap": false,
+                    "icon-image": "triangle-15",
+                    "text-ignore-placement": false,
+                    "symbol-spacing": 2,
+                    "text-font": [
+                        "Clan Offc Pro Medium",
+                        "Arial Unicode MS Regular"
+                    ],
+                    "icon-rotate": -269,
+                    "icon-allow-overlap": false,
+                    "symbol-placement": "line",
+                    "text-justify": "center",
+                    "text-offset": [
+                        0, -0.5
+                    ],
+                    "icon-optional": false,
+                    "text-rotation-alignment": "map",
+                    "icon-size": 0.6,
+                    "text-anchor": "bottom",
+                    "text-field": "NO {TURN_DIR_C}"
+                },
+                "paint": {
+                    "text-color": "hsl(0, 1%, 40%)",
+                    "text-halo-color": "hsl(0, 0%, 100%)",
+                    "text-halo-width": 2
+                }
+            }]
+        }]
+    },
+    "mapillary": {
+        "groups": [{
+            "name": "traffic-sign",
+            "source": {
+                "type": "vector",
+                "tiles": [
+                    // "https://crossorigin.me/http://mapillary-vector.mapillary.io/tiles/{z}/{x}/{y}.mapbox?ors=key,l,package,value,validated,image_key,user,score,obj,rect",
+                    "http://mapillary-vector.mapillary.io/tiles/{z}/{x}/{y}.mapbox?ors=key,l,package,value,validated,image_key,user,score,obj,rect",
+                ],
+                "minzoon": 14,
+                "maxzoom": 18
+            },
+            "layers": [{
+                "name": "location",
+                "type": "circle",
+                'source-layer': 'ors',
+                "paint": {
+                    "circle-radius": 2,
+                    "circle-color": "grey"
+                }
+            }, {
+                "name": "turn-restriction",
+                "type": "circle",
+                'source-layer': 'ors',
+                "paint": {
+                    "circle-radius": 4,
+                    "circle-color": "#05d107"
+                },
+                "filter": mapillaryRestrictionsFilter
+            }, {
+                "name": "turn-restriction-label",
+                "type": "symbol",
+                "source-layer": "ors",
+                "layout": {
+                    "text-field": "{value}",
+                    "text-size": 8,
+                    "text-offset": [0, 2]
+                },
+                "paint": {
+                    "text-color": "black",
+                    "text-halo-color": "white",
+                    "text-halo-width": 1
+                }
+            }]
+        }, {
+            "name": "coverage",
+            "source": {
+                "type": "vector",
+                "tiles": [
+                    "https://d2munx5tg0hw47.cloudfront.net/tiles/{z}/{x}/{y}.mapbox"
+                ],
+                "minzoom": 2,
+                "maxzoom": 16
+            },
+            "layers": [{
+                "name": "line",
+                "type": "line",
+                "source-layer": "mapillary-sequences",
+                "paint": {
+                    "line-color": '#62fa5f',
+                    "line-width": 2,
+                    "line-opacity": 0.3
+                }
+            }]
+        }]
+    }
+}
+
+// Add commonly used data layers and styles to a Mapbox map
+function addMapboxLayers(map, layers) {
+
+    for (var i in layers) {
+        if (layers[i] in mapboxLayers) {
+
+            // Add the defined source and layers for each group
+            var groupName = layers[i];
+
+            for (var j in mapboxLayers[layers[i]].groups) {
+
+                // Add the group source
+                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
+                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
+
+                // Add the group style layers
+                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
+
+                    // Generate unique layer ID and source
+                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
+                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
+                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
+                    }
+                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
+
+                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
+
+                }
+            }
+        }
+        //Add Mapillary JS viewer on clicking a photograph location
+        if (layers[i] == 'mapillary') {
+
+            map.on('click', function(e) {
+
+                var clickedFeatures = queryLayerFeatures(map, e.point, {
+                    layers: ['mapillary traffic-sign location'],
+                    radius: 15
+                });
+
+
+                if (clickedFeatures.length) {
+                    console.log(clickedFeatures);
+
+                    var imageKey = clickedFeatures[0].properties.image_key;
+
+                    var mly = new Mapillary.Viewer(
+                        'mapillary-viewer',
+                        'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh',
+                        imageKey
+                    );
+
+                    //openInJOSM();
+
+                }
+            });
+        }
+
+    }
+}
+
+},{}],3:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -603,7 +1146,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":40}],3:[function(require,module,exports){
+},{"util/":41}],4:[function(require,module,exports){
 /**
  * @alias geojsonhint
  * @param {(string|object)} GeoJSON given as a string or as an object
@@ -935,7 +1478,7 @@ function hint(gj, options) {
 
 module.exports.hint = hint;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var hat = module.exports = function (bits, base) {
     if (!base) base = 16;
     if (bits === undefined) bits = 128;
@@ -999,7 +1542,7 @@ hat.rack = function (bits, base, expandBy) {
     return fn;
 };
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1024,14 +1567,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 'use strict';
 
 module.exports = function(str) {
   return window.atob(str);
 };
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 'use strict';
 
 var interceptor = require('rest/interceptor');
@@ -1063,7 +1606,7 @@ var callbackify = interceptor({
 
 module.exports = callbackify;
 
-},{"rest/interceptor":19}],8:[function(require,module,exports){
+},{"rest/interceptor":20}],9:[function(require,module,exports){
 'use strict';
 
 var rest = require('rest');
@@ -1082,7 +1625,7 @@ module.exports = function(config) {
     .wrap(callbackify);
 };
 
-},{"./callbackify":7,"rest":15,"rest/interceptor/defaultRequest":20,"rest/interceptor/errorCode":21,"rest/interceptor/mime":22,"rest/interceptor/pathPrefix":23,"rest/interceptor/template":24}],9:[function(require,module,exports){
+},{"./callbackify":8,"rest":16,"rest/interceptor/defaultRequest":21,"rest/interceptor/errorCode":22,"rest/interceptor/mime":23,"rest/interceptor/pathPrefix":24,"rest/interceptor/template":25}],10:[function(require,module,exports){
 // We keep all of the constants that declare endpoints in one
 // place, so that we could concievably update this for API layout
 // revisions.
@@ -1105,7 +1648,7 @@ module.exports.API_TILESTATS_LAYER = '/tilestats/v1/{owner}/{tileset}/{layer}';
 module.exports.API_TILESTATS_ATTRIBUTE = '/tilestats/v1/{owner}/{tileset}/{layer}/{attribute}';
 module.exports.API_STATIC = '/v4/{mapid}{+overlay}/{+xyz}/{width}x{height}{+retina}{.format}';
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -1146,7 +1689,7 @@ function getUser(token) {
 module.exports = getUser;
 
 }).call(this,require('_process'))
-},{"_process":13,"atob":6}],11:[function(require,module,exports){
+},{"_process":14,"atob":7}],12:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert');
@@ -1204,7 +1747,7 @@ function makeService(name) {
 
 module.exports = makeService;
 
-},{"./client":8,"./constants":9,"./get_user":10,"assert":2}],12:[function(require,module,exports){
+},{"./client":9,"./constants":10,"./get_user":11,"assert":3}],13:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert'),
@@ -1767,7 +2310,7 @@ Datasets.prototype.bulkFeatureUpdate = function(update, dataset, callback) {
   });
 };
 
-},{"../constants":9,"../make_service":11,"assert":2,"geojsonhint/object":3,"hat":4}],13:[function(require,module,exports){
+},{"../constants":10,"../make_service":12,"assert":3,"geojsonhint/object":4,"hat":5}],14:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1863,7 +2406,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2094,7 +2637,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./util/mixin":34}],15:[function(require,module,exports){
+},{"./util/mixin":35}],16:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2121,7 +2664,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client/default":17,"./client/xhr":18}],16:[function(require,module,exports){
+},{"./client/default":18,"./client/xhr":19}],17:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2187,7 +2730,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2313,7 +2856,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../client":16}],18:[function(require,module,exports){
+},{"../client":17}],19:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2489,7 +3032,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":14,"../client":16,"../util/normalizeHeaderName":35,"../util/responsePromise":36,"when":58}],19:[function(require,module,exports){
+},{"../UrlBuilder":15,"../client":17,"../util/normalizeHeaderName":36,"../util/responsePromise":37,"when":59}],20:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2656,7 +3199,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client":16,"./client/default":17,"./util/mixin":34,"./util/responsePromise":36,"when":58}],20:[function(require,module,exports){
+},{"./client":17,"./client/default":18,"./util/mixin":35,"./util/responsePromise":37,"when":59}],21:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2737,7 +3280,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":19,"../util/mixin":34}],21:[function(require,module,exports){
+},{"../interceptor":20,"../util/mixin":35}],22:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2786,7 +3329,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":19,"when":58}],22:[function(require,module,exports){
+},{"../interceptor":20,"when":59}],23:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2898,7 +3441,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":19,"../mime":25,"../mime/registry":26,"when":58}],23:[function(require,module,exports){
+},{"../interceptor":20,"../mime":26,"../mime/registry":27,"when":59}],24:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2959,7 +3502,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":14,"../interceptor":19}],24:[function(require,module,exports){
+},{"../UrlBuilder":15,"../interceptor":20}],25:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3017,7 +3560,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":19,"../util/mixin":34,"../util/uriTemplate":38}],25:[function(require,module,exports){
+},{"../interceptor":20,"../util/mixin":35,"../util/uriTemplate":39}],26:[function(require,module,exports){
 /*
 * Copyright 2014 the original author or authors
 * @license MIT, see LICENSE.txt for details
@@ -3072,7 +3615,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3189,7 +3732,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../mime":25,"./type/application/hal":27,"./type/application/json":28,"./type/application/x-www-form-urlencoded":29,"./type/multipart/form-data":30,"./type/text/plain":31,"when":58}],27:[function(require,module,exports){
+},{"../mime":26,"./type/application/hal":28,"./type/application/json":29,"./type/application/x-www-form-urlencoded":30,"./type/multipart/form-data":31,"./type/text/plain":32,"when":59}],28:[function(require,module,exports){
 /*
  * Copyright 2013-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3330,7 +3873,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../../../interceptor/pathPrefix":23,"../../../interceptor/template":24,"../../../util/find":32,"../../../util/lazyPromise":33,"../../../util/responsePromise":36,"when":58}],28:[function(require,module,exports){
+},{"../../../interceptor/pathPrefix":24,"../../../interceptor/template":25,"../../../util/find":33,"../../../util/lazyPromise":34,"../../../util/responsePromise":37,"when":59}],29:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3379,7 +3922,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3471,7 +4014,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3546,7 +4089,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3577,7 +4120,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3620,7 +4163,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3677,7 +4220,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"when":58}],34:[function(require,module,exports){
+},{"when":59}],35:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3727,7 +4270,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3767,7 +4310,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 /*
  * Copyright 2014-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3909,7 +4452,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./normalizeHeaderName":35,"when":58}],37:[function(require,module,exports){
+},{"./normalizeHeaderName":36,"when":59}],38:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4091,7 +4634,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4265,14 +4808,14 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./uriEncoder":37}],39:[function(require,module,exports){
+},{"./uriEncoder":38}],40:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4862,7 +5405,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":39,"_process":13,"inherits":5}],41:[function(require,module,exports){
+},{"./support/isBuffer":40,"_process":14,"inherits":6}],42:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -4881,7 +5424,7 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./Scheduler":42,"./env":54,"./makePromise":56}],42:[function(require,module,exports){
+},{"./Scheduler":43,"./env":55,"./makePromise":57}],43:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -4963,7 +5506,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],43:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -4991,7 +5534,7 @@ define(function() {
 	return TimeoutError;
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
-},{}],44:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5048,7 +5591,7 @@ define(function() {
 
 
 
-},{}],45:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5339,7 +5882,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../apply":44,"../state":57}],46:[function(require,module,exports){
+},{"../apply":45,"../state":58}],47:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5501,7 +6044,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],47:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5530,7 +6073,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5552,7 +6095,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../state":57}],49:[function(require,module,exports){
+},{"../state":58}],50:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5619,7 +6162,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5645,7 +6188,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5725,7 +6268,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../TimeoutError":43,"../env":54}],52:[function(require,module,exports){
+},{"../TimeoutError":44,"../env":55}],53:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5813,7 +6356,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../env":54,"../format":55}],53:[function(require,module,exports){
+},{"../env":55,"../format":56}],54:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5853,7 +6396,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 
-},{}],54:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -5930,7 +6473,7 @@ define(function(require) {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
 }).call(this,require('_process'))
-},{"_process":13}],55:[function(require,module,exports){
+},{"_process":14}],56:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5988,7 +6531,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],56:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -6919,7 +7462,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 }).call(this,require('_process'))
-},{"_process":13}],57:[function(require,module,exports){
+},{"_process":14}],58:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6956,7 +7499,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],58:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 
 /**
@@ -7186,4 +7729,4 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./lib/Promise":41,"./lib/TimeoutError":43,"./lib/apply":44,"./lib/decorators/array":45,"./lib/decorators/flow":46,"./lib/decorators/fold":47,"./lib/decorators/inspect":48,"./lib/decorators/iterate":49,"./lib/decorators/progress":50,"./lib/decorators/timed":51,"./lib/decorators/unhandledRejection":52,"./lib/decorators/with":53}]},{},[1]);
+},{"./lib/Promise":42,"./lib/TimeoutError":44,"./lib/apply":45,"./lib/decorators/array":46,"./lib/decorators/flow":47,"./lib/decorators/fold":48,"./lib/decorators/inspect":49,"./lib/decorators/iterate":50,"./lib/decorators/progress":51,"./lib/decorators/timed":52,"./lib/decorators/unhandledRejection":53,"./lib/decorators/with":54}]},{},[1]);

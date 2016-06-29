@@ -4,8 +4,8 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>OSM Navigation Map</title>
-    <meta name="description" content="OpenStreetMap Tree Map">
+    <title>OSM Data Mapper</title>
+    <meta name="description" content="OpenStreetMap Data Mapper">
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.19.1/mapbox-gl.js'></script>
@@ -13,6 +13,8 @@
     <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v1.0.0/mapbox-gl-geocoder.js'></script>
     <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v1.0.0/mapbox-gl-geocoder.css' type='text/css' />
     <link href="https://www.mapbox.com/base/latest/base.css" rel="stylesheet">
+    <script src='https://npmcdn.com/mapillary-js@1.4.1/dist/mapillary-js.min.js'></script>
+    <link href='https://npmcdn.com/mapillary-js@1.4.1/dist/mapillary-js.min.css' rel='stylesheet' />
 </head>
 
 <style type="text/css">
@@ -85,6 +87,7 @@
     </div>
     <div class='col12 clearfix'>
         <div id='map' class=''></div>
+        <div id='mapillary-viewer' style="position: absolute; bottom: 0;width:500px;height:500px"></div>
         <div style="position: absolute; bottom: 0;display:none">
             <div class="pad1">
                 <img class="hidden" id="mapillary-image" width="300px" src="">
@@ -96,7 +99,6 @@
             </div>
         </div>
     </div>
-    <script src='js/mapbox-gl-utils.js'></script>
     <script src="js/build.js"></script>
 </body>
 

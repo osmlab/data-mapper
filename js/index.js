@@ -1,4 +1,5 @@
 // Mapbox Configuration
+var mapboxglUtils = require('./mapbox-gl-utils');
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
 var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
@@ -54,12 +55,10 @@ map.on('style.load', function(e) {
 
     function init() {
 
-        addGeolocationMarker();
-
         map.addSource('overlayDataSource', overlayDataSource);
         map.addLayer(overlayData);
 
-        addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
+        mapboxglUtils.addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
 
         getOverlayFeatures();
 
@@ -78,7 +77,7 @@ map.on('style.load', function(e) {
 
             };
 
-            var clickedOverlayFeatures = queryLayerFeatures(map, e.point, {
+            var clickedOverlayFeatures = mapboxglUtils.queryLayerFeatures(map, e.point, {
                 layers: ['overlayData'],
                 radius: 10
             });
@@ -91,7 +90,7 @@ map.on('style.load', function(e) {
 
             function overlayFeatureForm(feature) {
 
-                var josm_button = createHTML(map, 'open-obj-in-josm-button');
+                var josm_button = mapboxglUtils.createHTML(map, 'open-obj-in-josm-button');
 
                 var formOptions = "<div class='radio-pill pill pad2y clearfix' style='width:350px'><input id='valid' type='radio' name='review' value='valid' checked='checked'><label for='valid' class='col4 button short icon check fill-green'>Valid</label><input id='redundant' type='radio' name='review' value='redundant'><label for='redundant' class='col4 button short icon check fill-mustard'>Redundant</label><input id='invalid' type='radio' name='review' value='invalid'><label for='invalid' class='col4 button icon short check fill-red'>Invalid</label></div>";
                 var formReviewer = "<fieldset><label>Reviewed by: <span id='reviewer' style='padding:5px;background-color:#eee'></span></label><input type='text' name='reviewer' placeholder='OSM username'></input></fieldset>"
@@ -181,62 +180,3 @@ map.on('style.load', function(e) {
     }
 
 });
-
-// Toggle visibility of a layer
-function toggle(id) {
-    var currentState = map.getLayoutProperty(id, 'visibility');
-    var nextState = currentState === 'none' ? 'visible' : 'none';
-    map.setLayoutProperty(id, 'visibility', nextState);
-}
-
-// Toggle a set of filters for a set of layers
-function toggleLayerFilters(layerItems, filterItem) {
-
-    for (var i in layerItems) {
-        for (var j in toggleLayers[layerItems[i]].layers) {
-
-            var existingFilter = map.getFilter(toggleLayers[layerItems[i]].layers[j]);
-
-            // Construct and add the filters if none exist for the layers
-            if (typeof existingFilter == 'undefined') {
-                map.setFilter(toggleLayers[layerItems[i]].layers[j], toggleFilters[filterItem].filter);
-            } else {
-                // Not implemented
-                var newFilter = mergeLayerFilters(existingFilter, toggleFilters[filterItem].filter);
-                map.setFilter(toggleLayers[layerItems[i]].layers[j], newFilter);
-                // console.log(newFilter);
-            }
-
-        }
-    }
-}
-
-function addGeolocationMarker() {
-    map.addSource('single-point', {
-        "type": "geojson",
-        "data": {
-            "type": "FeatureCollection",
-            "features": []
-        }
-    });
-
-    map.addLayer({
-        "id": "point",
-        "source": "single-point",
-        "type": "circle",
-        "paint": {
-            "circle-radius": 10,
-            "circle-color": "#007cbf"
-        }
-    });
-
-    // Listen for the `geocoder.input` event that is triggered when a user
-    // makes a selection and add a marker that matches the result.
-    geolocate.on('geolocate', function(ev) {
-        console.log(e);
-    });
-
-    map.on('geolocate', function(e) {
-        console.log(e);
-    });
-}
