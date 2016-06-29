@@ -757,7 +757,14 @@ function addMapboxLayers(map, layers) {
         //Add Mapillary JS viewer on clicking a photograph location
         if (layers[i] == 'mapillary') {
 
+            var mly = new Mapillary.Viewer(
+                'mapillary-viewer',
+                'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh'
+            );
+
             map.on('click', function(e) {
+
+                document.getElementById('mapillary-viewer').style.visibility = "visible";
 
                 var clickedFeatures = queryLayerFeatures(map, e.point, {
                     layers: ['mapillary traffic-sign location'],
@@ -770,14 +777,11 @@ function addMapboxLayers(map, layers) {
 
                     var imageKey = clickedFeatures[0].properties.image_key;
 
-                    var mly = new Mapillary.Viewer(
-                        'mapillary-viewer',
-                        'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh',
-                        imageKey
-                    );
+                    mly.moveToKey(imageKey);
 
                     //openInJOSM();
-
+                } else {
+                    document.getElementById('mapillary-viewer').style.visibility = "hidden";
                 }
             });
         }
