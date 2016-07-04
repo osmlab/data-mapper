@@ -776,12 +776,13 @@ function addMapboxLayers(map, layers) {
                     console.log(clickedFeatures);
 
                     var imageKey = clickedFeatures[0].properties.image_key;
+                    var imageUrl = 'https://d1cuyjsrcm0gby.cloudfront.net/' + imageKey + '/thumb-2048.jpg';
 
                     mly.moveToKey(imageKey);
 
                     //openInJOSM();
                 } else {
-                    document.getElementById('mapillary-viewer').style.visibility = "hidden";
+                    document.getElementById('mapillary-viewer').style.visibility = "none";
                 }
             });
         }
