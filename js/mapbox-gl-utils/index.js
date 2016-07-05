@@ -181,13 +181,14 @@ var mapboxLayers = {
                     "line-cap": "round"
                 },
                 "paint": {
-                    "line-color": "hsl(10, 96%, 53%)",
+                    "line-color": "purple",
                     "line-width": 1
                 }
             }, {
                 "id": "noturn from",
                 "type": "line",
                 "source-layer": "turnrestrictions",
+                "minzoom": 13,
                 "interactive": true,
                 "filter": [
                     "==",
@@ -207,6 +208,7 @@ var mapboxLayers = {
                 "id": "noturn via",
                 "type": "circle",
                 "source-layer": "turnrestrictions",
+                "minzoom": 13,
                 "interactive": true,
                 "filter": [
                     "all", [
@@ -224,7 +226,7 @@ var mapboxLayers = {
                     "visibility": "visible"
                 },
                 "paint": {
-                    "circle-color": "hsl(10, 96%, 53%)",
+                    "circle-color": "purple",
                     "circle-radius": 3
                 }
             }]
@@ -597,7 +599,7 @@ function addMapboxLayers(map, layers) {
 
                     //openInJOSM();
                 } else {
-                    document.getElementById('mapillary-viewer').style.visibility = "hidden";
+                    document.getElementById('mapillary-viewer').style.visibility = "none";
                 }
             });
         }
