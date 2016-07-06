@@ -16,3 +16,7 @@ Every data mapping project needs to have these components:
 - A [Mapbox dataset ID](https://www.mapbox.com/api-documentation/#datasets) to store the data of the review markers
 
 Instructions on how to customize will be updated afetr https://github.com/osmlab/data-mapper/issues/5
+
+## Develop
+- Clone the repo and `cd`
+- `npm install && npm start`
