@@ -18,5 +18,6 @@ Every data mapping project needs to have these components:
 Instructions on how to customize will be updated afetr https://github.com/osmlab/data-mapper/issues/5
 
 ## Develop
+You will need Jekyll and node installed.
 - Clone the repo and `cd`
 - `npm install && npm start`
