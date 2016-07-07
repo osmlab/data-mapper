@@ -16,7 +16,10 @@ Every data mapping project needs to have these components:
 - A [Mapbox dataset ID](https://www.mapbox.com/api-documentation/#datasets) to store the data of the review markers
 - A data review form for the details to be captured on the review markers
 
-Instructions on how to customize will be updated afetr https://github.com/osmlab/data-mapper/issues/5
+Instructions on how to customize will be updated after https://github.com/osmlab/data-mapper/issues/5
+
+### [WIP] Define a project
+
 
 ## Develop
 You will need Jekyll and node installed.

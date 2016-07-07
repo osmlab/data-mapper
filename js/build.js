@@ -182,7 +182,14 @@ map.on('style.load', function(e) {
 
 });
 
-},{"./mapbox-gl-utils":2,"mapbox/lib/services/datasets":13}],2:[function(require,module,exports){
+// Export module
+// if (window.mapboxgl) {
+//     mapboxgl.dataMapper = dataMapper;
+// } else if (typeof module !== 'undefined') {
+//     module.exports = dataMapper;
+// }
+
+},{"./mapbox-gl-utils":2,"mapbox/lib/services/datasets":15}],2:[function(require,module,exports){
 // Utility functions to work with Mapbox GL JS maps
 // Requires mapbox-gl.js and jquery
 
@@ -192,7 +199,7 @@ module.exports.queryLayerFeatures = queryLayerFeatures;
 module.exports.createHTML = createHTML;
 
 // Dependencies
-//var Mapillary = require('mapillary-js');
+var mapboxLayers = require('./layers').layers;
 
 
 // Toggle visibility of a layer
@@ -333,8 +340,78 @@ var mapboxLayerIDs = {
     "roads": "tunnel-street-low"
 }
 
-// Configure filters for some layers
-var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us", "regulatory--no-right-turn--us", "regulatory--no-straight-through--us", "regulatory--no-u-turn--us", "regulatory--no-left-or-u-turn--us", "regulatory--no-left-turn--ca", "regulatory--no-right-turn--ca", "regulatory--no-straight-through--ca", "regulatory--no-u-turn--ca", "regulatory--no-left-or-u-turn--ca"]
+
+// Add commonly used data layers and styles to a Mapbox map
+function addMapboxLayers(map, layers) {
+
+    for (var i in layers) {
+        if (layers[i] in mapboxLayers) {
+
+            // Add the defined source and layers for each group
+            var groupName = layers[i];
+
+            for (var j in mapboxLayers[layers[i]].groups) {
+
+                // Add the group source
+                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
+                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
+
+                // Add the group style layers
+                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
+
+                    // Generate unique layer ID and source
+                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
+                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
+                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
+                    }
+                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
+
+                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
+
+                }
+            }
+        }
+        //Add Mapillary JS viewer on clicking a photograph location
+        if (layers[i] == 'mapillary') {
+
+            var mly = new Mapillary.Viewer(
+                'mapillary-viewer',
+                'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh'
+            );
+
+            map.on('click', function(e) {
+
+                document.getElementById('mapillary-viewer').style.visibility = "visible";
+
+                var clickedFeatures = queryLayerFeatures(map, e.point, {
+                    layers: ['mapillary traffic-sign location'],
+                    radius: 15
+                });
+
+
+                if (clickedFeatures.length) {
+                    console.log(clickedFeatures);
+
+                    var imageKey = clickedFeatures[0].properties.image_key;
+                    var imageUrl = 'https://d1cuyjsrcm0gby.cloudfront.net/' + imageKey + '/thumb-2048.jpg';
+
+                    mly.moveToKey(imageKey);
+
+                    //openInJOSM();
+                } else {
+                    document.getElementById('mapillary-viewer').style.visibility = "none";
+                }
+            });
+        }
+
+    }
+}
+
+},{"./layers":4}],3:[function(require,module,exports){
+//
+// Definition of Mapbox source layers and corresponding GL styles to overlay
+//
+
 
 // Configure common data layers
 // "template-name": {
@@ -348,75 +425,6 @@ var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us"
 // },
 
 var mapboxLayers = {
-    "osm-navigation": {
-        "groups": [{
-            "name": "turn-restrictions",
-            "source": {
-                type: 'vector',
-                url: 'mapbox://planemad.turnrestrictions'
-            },
-            "layers": [{
-                "id": "noturn",
-                "type": "line",
-                "source-layer": "turnrestrictions",
-                "minzoom": 13,
-                "interactive": true,
-                "layout": {
-                    "visibility": "visible",
-                    "line-cap": "round"
-                },
-                "paint": {
-                    "line-color": "purple",
-                    "line-width": 1
-                }
-            }, {
-                "id": "noturn from",
-                "type": "line",
-                "source-layer": "turnrestrictions",
-                "minzoom": 13,
-                "interactive": true,
-                "filter": [
-                    "==",
-                    "relations_role",
-                    "from"
-                ],
-                "layout": {
-                    "visibility": "visible",
-                    "line-cap": "round"
-                },
-                "paint": {
-                    "line-color": "hsl(0, 51%, 77%)",
-                    "line-opacity": 0.55,
-                    "line-width": 4
-                }
-            }, {
-                "id": "noturn via",
-                "type": "circle",
-                "source-layer": "turnrestrictions",
-                "minzoom": 13,
-                "interactive": true,
-                "filter": [
-                    "all", [
-                        "==",
-                        "$type",
-                        "Point"
-                    ],
-                    [
-                        "==",
-                        "relations_role",
-                        "via"
-                    ]
-                ],
-                "layout": {
-                    "visibility": "visible"
-                },
-                "paint": {
-                    "circle-color": "purple",
-                    "circle-radius": 3
-                }
-            }]
-        }]
-    },
     "toronto": {
         "groups": [{
             "name": "centreline",
@@ -657,6 +665,105 @@ var mapboxLayers = {
                 }
             }]
         }]
+    }
+}
+
+module.exports = {
+  layers: mapboxLayers
+};
+
+},{}],4:[function(require,module,exports){
+//
+// Definition of some common Mapbox source layers and corresponding GL styles
+//
+
+var customLayers = require('./layers-toronto-restrictions').layers;
+var merge = require('merge');
+
+// Configuration for some layers
+var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us", "regulatory--no-right-turn--us", "regulatory--no-straight-through--us", "regulatory--no-u-turn--us", "regulatory--no-left-or-u-turn--us", "regulatory--no-left-turn--ca", "regulatory--no-right-turn--ca", "regulatory--no-straight-through--ca", "regulatory--no-u-turn--ca", "regulatory--no-left-or-u-turn--ca"]
+
+
+// Configure common data layers
+// "template-name": {
+//   "groups": [{
+//     "name": "group-name",
+//     "source": {},
+//     "layers": [{
+//       "name": "layer-name",
+//     }]
+//   }]
+// },
+
+var mapboxLayers = {
+    "osm-navigation": {
+        "groups": [{
+            "name": "turn-restrictions",
+            "source": {
+                type: 'vector',
+                url: 'mapbox://planemad.turnrestrictions'
+            },
+            "layers": [{
+                "id": "noturn",
+                "type": "line",
+                "source-layer": "turnrestrictions",
+                "minzoom": 13,
+                "interactive": true,
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "purple",
+                    "line-width": 1
+                }
+            }, {
+                "id": "noturn from",
+                "type": "line",
+                "source-layer": "turnrestrictions",
+                "minzoom": 13,
+                "interactive": true,
+                "filter": [
+                    "==",
+                    "relations_role",
+                    "from"
+                ],
+                "layout": {
+                    "visibility": "visible",
+                    "line-cap": "round"
+                },
+                "paint": {
+                    "line-color": "hsl(0, 51%, 77%)",
+                    "line-opacity": 0.55,
+                    "line-width": 4
+                }
+            }, {
+                "id": "noturn via",
+                "type": "circle",
+                "source-layer": "turnrestrictions",
+                "minzoom": 13,
+                "interactive": true,
+                "filter": [
+                    "all", [
+                        "==",
+                        "$type",
+                        "Point"
+                    ],
+                    [
+                        "==",
+                        "relations_role",
+                        "via"
+                    ]
+                ],
+                "layout": {
+                    "visibility": "visible"
+                },
+                "paint": {
+                    "circle-color": "purple",
+                    "circle-radius": 3
+                }
+            }]
+        }]
     },
     "mapillary": {
         "groups": [{
@@ -726,73 +833,12 @@ var mapboxLayers = {
     }
 }
 
-// Add commonly used data layers and styles to a Mapbox map
-function addMapboxLayers(map, layers) {
+// Merge external
+module.exports = {
+  layers: merge(mapboxLayers,customLayers)
+};
 
-    for (var i in layers) {
-        if (layers[i] in mapboxLayers) {
-
-            // Add the defined source and layers for each group
-            var groupName = layers[i];
-
-            for (var j in mapboxLayers[layers[i]].groups) {
-
-                // Add the group source
-                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
-                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
-
-                // Add the group style layers
-                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
-
-                    // Generate unique layer ID and source
-                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
-                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
-                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
-                    }
-                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
-
-                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
-
-                }
-            }
-        }
-        //Add Mapillary JS viewer on clicking a photograph location
-        if (layers[i] == 'mapillary') {
-
-            var mly = new Mapillary.Viewer(
-                'mapillary-viewer',
-                'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh'
-            );
-
-            map.on('click', function(e) {
-
-                document.getElementById('mapillary-viewer').style.visibility = "visible";
-
-                var clickedFeatures = queryLayerFeatures(map, e.point, {
-                    layers: ['mapillary traffic-sign location'],
-                    radius: 15
-                });
-
-
-                if (clickedFeatures.length) {
-                    console.log(clickedFeatures);
-
-                    var imageKey = clickedFeatures[0].properties.image_key;
-                    var imageUrl = 'https://d1cuyjsrcm0gby.cloudfront.net/' + imageKey + '/thumb-2048.jpg';
-
-                    mly.moveToKey(imageKey);
-
-                    //openInJOSM();
-                } else {
-                    document.getElementById('mapillary-viewer').style.visibility = "none";
-                }
-            });
-        }
-
-    }
-}
-
-},{}],3:[function(require,module,exports){
+},{"./layers-toronto-restrictions":3,"merge":16}],5:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1153,7 +1199,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":41}],4:[function(require,module,exports){
+},{"util/":44}],6:[function(require,module,exports){
 /**
  * @alias geojsonhint
  * @param {(string|object)} GeoJSON given as a string or as an object
@@ -1485,7 +1531,7 @@ function hint(gj, options) {
 
 module.exports.hint = hint;
 
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var hat = module.exports = function (bits, base) {
     if (!base) base = 16;
     if (bits === undefined) bits = 128;
@@ -1549,7 +1595,7 @@ hat.rack = function (bits, base, expandBy) {
     return fn;
 };
 
-},{}],6:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1574,14 +1620,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],7:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 'use strict';
 
 module.exports = function(str) {
   return window.atob(str);
 };
 
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 'use strict';
 
 var interceptor = require('rest/interceptor');
@@ -1613,7 +1659,7 @@ var callbackify = interceptor({
 
 module.exports = callbackify;
 
-},{"rest/interceptor":20}],9:[function(require,module,exports){
+},{"rest/interceptor":23}],11:[function(require,module,exports){
 'use strict';
 
 var rest = require('rest');
@@ -1632,7 +1678,7 @@ module.exports = function(config) {
     .wrap(callbackify);
 };
 
-},{"./callbackify":8,"rest":16,"rest/interceptor/defaultRequest":21,"rest/interceptor/errorCode":22,"rest/interceptor/mime":23,"rest/interceptor/pathPrefix":24,"rest/interceptor/template":25}],10:[function(require,module,exports){
+},{"./callbackify":10,"rest":19,"rest/interceptor/defaultRequest":24,"rest/interceptor/errorCode":25,"rest/interceptor/mime":26,"rest/interceptor/pathPrefix":27,"rest/interceptor/template":28}],12:[function(require,module,exports){
 // We keep all of the constants that declare endpoints in one
 // place, so that we could concievably update this for API layout
 // revisions.
@@ -1655,7 +1701,7 @@ module.exports.API_TILESTATS_LAYER = '/tilestats/v1/{owner}/{tileset}/{layer}';
 module.exports.API_TILESTATS_ATTRIBUTE = '/tilestats/v1/{owner}/{tileset}/{layer}/{attribute}';
 module.exports.API_STATIC = '/v4/{mapid}{+overlay}/{+xyz}/{width}x{height}{+retina}{.format}';
 
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -1696,7 +1742,7 @@ function getUser(token) {
 module.exports = getUser;
 
 }).call(this,require('_process'))
-},{"_process":14,"atob":7}],12:[function(require,module,exports){
+},{"_process":17,"atob":9}],14:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert');
@@ -1754,7 +1800,7 @@ function makeService(name) {
 
 module.exports = makeService;
 
-},{"./client":9,"./constants":10,"./get_user":11,"assert":3}],13:[function(require,module,exports){
+},{"./client":11,"./constants":12,"./get_user":13,"assert":5}],15:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert'),
@@ -2317,7 +2363,183 @@ Datasets.prototype.bulkFeatureUpdate = function(update, dataset, callback) {
   });
 };
 
-},{"../constants":10,"../make_service":12,"assert":3,"geojsonhint/object":4,"hat":5}],14:[function(require,module,exports){
+},{"../constants":12,"../make_service":14,"assert":5,"geojsonhint/object":6,"hat":7}],16:[function(require,module,exports){
+/*!
+ * @name JavaScript/NodeJS Merge v1.2.0
+ * @author yeikos
+ * @repository https://github.com/yeikos/js.merge
+
+ * Copyright 2014 yeikos - MIT license
+ * https://raw.github.com/yeikos/js.merge/master/LICENSE
+ */
+
+;(function(isNode) {
+
+	/**
+	 * Merge one or more objects 
+	 * @param bool? clone
+	 * @param mixed,... arguments
+	 * @return object
+	 */
+
+	var Public = function(clone) {
+
+		return merge(clone === true, false, arguments);
+
+	}, publicName = 'merge';
+
+	/**
+	 * Merge two or more objects recursively 
+	 * @param bool? clone
+	 * @param mixed,... arguments
+	 * @return object
+	 */
+
+	Public.recursive = function(clone) {
+
+		return merge(clone === true, true, arguments);
+
+	};
+
+	/**
+	 * Clone the input removing any reference
+	 * @param mixed input
+	 * @return mixed
+	 */
+
+	Public.clone = function(input) {
+
+		var output = input,
+			type = typeOf(input),
+			index, size;
+
+		if (type === 'array') {
+
+			output = [];
+			size = input.length;
+
+			for (index=0;index<size;++index)
+
+				output[index] = Public.clone(input[index]);
+
+		} else if (type === 'object') {
+
+			output = {};
+
+			for (index in input)
+
+				output[index] = Public.clone(input[index]);
+
+		}
+
+		return output;
+
+	};
+
+	/**
+	 * Merge two objects recursively
+	 * @param mixed input
+	 * @param mixed extend
+	 * @return mixed
+	 */
+
+	function merge_recursive(base, extend) {
+
+		if (typeOf(base) !== 'object')
+
+			return extend;
+
+		for (var key in extend) {
+
+			if (typeOf(base[key]) === 'object' && typeOf(extend[key]) === 'object') {
+
+				base[key] = merge_recursive(base[key], extend[key]);
+
+			} else {
+
+				base[key] = extend[key];
+
+			}
+
+		}
+
+		return base;
+
+	}
+
+	/**
+	 * Merge two or more objects
+	 * @param bool clone
+	 * @param bool recursive
+	 * @param array argv
+	 * @return object
+	 */
+
+	function merge(clone, recursive, argv) {
+
+		var result = argv[0],
+			size = argv.length;
+
+		if (clone || typeOf(result) !== 'object')
+
+			result = {};
+
+		for (var index=0;index<size;++index) {
+
+			var item = argv[index],
+
+				type = typeOf(item);
+
+			if (type !== 'object') continue;
+
+			for (var key in item) {
+
+				var sitem = clone ? Public.clone(item[key]) : item[key];
+
+				if (recursive) {
+
+					result[key] = merge_recursive(result[key], sitem);
+
+				} else {
+
+					result[key] = sitem;
+
+				}
+
+			}
+
+		}
+
+		return result;
+
+	}
+
+	/**
+	 * Get type of variable
+	 * @param mixed input
+	 * @return string
+	 *
+	 * @see http://jsperf.com/typeofvar
+	 */
+
+	function typeOf(input) {
+
+		return ({}).toString.call(input).slice(8, -1).toLowerCase();
+
+	}
+
+	if (isNode) {
+
+		module.exports = Public;
+
+	} else {
+
+		window[publicName] = Public;
+
+	}
+
+})(typeof module === 'object' && module && typeof module.exports === 'object' && module.exports);
+},{}],17:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2413,7 +2635,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],15:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2644,7 +2866,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./util/mixin":35}],16:[function(require,module,exports){
+},{"./util/mixin":38}],19:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2671,7 +2893,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client/default":18,"./client/xhr":19}],17:[function(require,module,exports){
+},{"./client/default":21,"./client/xhr":22}],20:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2737,7 +2959,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],18:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2863,7 +3085,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../client":17}],19:[function(require,module,exports){
+},{"../client":20}],22:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3039,7 +3261,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":15,"../client":17,"../util/normalizeHeaderName":36,"../util/responsePromise":37,"when":59}],20:[function(require,module,exports){
+},{"../UrlBuilder":18,"../client":20,"../util/normalizeHeaderName":39,"../util/responsePromise":40,"when":62}],23:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3206,7 +3428,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client":17,"./client/default":18,"./util/mixin":35,"./util/responsePromise":37,"when":59}],21:[function(require,module,exports){
+},{"./client":20,"./client/default":21,"./util/mixin":38,"./util/responsePromise":40,"when":62}],24:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3287,7 +3509,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":20,"../util/mixin":35}],22:[function(require,module,exports){
+},{"../interceptor":23,"../util/mixin":38}],25:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3336,7 +3558,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":20,"when":59}],23:[function(require,module,exports){
+},{"../interceptor":23,"when":62}],26:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3448,7 +3670,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":20,"../mime":26,"../mime/registry":27,"when":59}],24:[function(require,module,exports){
+},{"../interceptor":23,"../mime":29,"../mime/registry":30,"when":62}],27:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3509,7 +3731,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":15,"../interceptor":20}],25:[function(require,module,exports){
+},{"../UrlBuilder":18,"../interceptor":23}],28:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3567,7 +3789,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":20,"../util/mixin":35,"../util/uriTemplate":39}],26:[function(require,module,exports){
+},{"../interceptor":23,"../util/mixin":38,"../util/uriTemplate":42}],29:[function(require,module,exports){
 /*
 * Copyright 2014 the original author or authors
 * @license MIT, see LICENSE.txt for details
@@ -3622,7 +3844,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],27:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3739,7 +3961,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../mime":26,"./type/application/hal":28,"./type/application/json":29,"./type/application/x-www-form-urlencoded":30,"./type/multipart/form-data":31,"./type/text/plain":32,"when":59}],28:[function(require,module,exports){
+},{"../mime":29,"./type/application/hal":31,"./type/application/json":32,"./type/application/x-www-form-urlencoded":33,"./type/multipart/form-data":34,"./type/text/plain":35,"when":62}],31:[function(require,module,exports){
 /*
  * Copyright 2013-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3880,7 +4102,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../../../interceptor/pathPrefix":24,"../../../interceptor/template":25,"../../../util/find":33,"../../../util/lazyPromise":34,"../../../util/responsePromise":37,"when":59}],29:[function(require,module,exports){
+},{"../../../interceptor/pathPrefix":27,"../../../interceptor/template":28,"../../../util/find":36,"../../../util/lazyPromise":37,"../../../util/responsePromise":40,"when":62}],32:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3929,7 +4151,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],30:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4021,7 +4243,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],31:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4096,7 +4318,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],32:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4127,7 +4349,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],33:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4170,7 +4392,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],34:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4227,7 +4449,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"when":59}],35:[function(require,module,exports){
+},{"when":62}],38:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4277,7 +4499,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],36:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4317,7 +4539,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],37:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 /*
  * Copyright 2014-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4459,7 +4681,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./normalizeHeaderName":36,"when":59}],38:[function(require,module,exports){
+},{"./normalizeHeaderName":39,"when":62}],41:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4641,7 +4863,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],39:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4815,14 +5037,14 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./uriEncoder":38}],40:[function(require,module,exports){
+},{"./uriEncoder":41}],43:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],41:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5412,7 +5634,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":40,"_process":14,"inherits":6}],42:[function(require,module,exports){
+},{"./support/isBuffer":43,"_process":17,"inherits":8}],45:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5431,7 +5653,7 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./Scheduler":43,"./env":55,"./makePromise":57}],43:[function(require,module,exports){
+},{"./Scheduler":46,"./env":58,"./makePromise":60}],46:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5513,7 +5735,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],44:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5541,7 +5763,7 @@ define(function() {
 	return TimeoutError;
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
-},{}],45:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5598,7 +5820,7 @@ define(function() {
 
 
 
-},{}],46:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5889,7 +6111,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../apply":45,"../state":58}],47:[function(require,module,exports){
+},{"../apply":48,"../state":61}],50:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6051,7 +6273,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],48:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6080,7 +6302,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],49:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6102,7 +6324,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../state":58}],50:[function(require,module,exports){
+},{"../state":61}],53:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6169,7 +6391,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],51:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6195,7 +6417,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],52:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6275,7 +6497,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../TimeoutError":44,"../env":55}],53:[function(require,module,exports){
+},{"../TimeoutError":47,"../env":58}],56:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6363,7 +6585,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../env":55,"../format":56}],54:[function(require,module,exports){
+},{"../env":58,"../format":59}],57:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6403,7 +6625,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 
-},{}],55:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -6480,7 +6702,7 @@ define(function(require) {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
 }).call(this,require('_process'))
-},{"_process":14}],56:[function(require,module,exports){
+},{"_process":17}],59:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6538,7 +6760,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],57:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -7469,7 +7691,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 }).call(this,require('_process'))
-},{"_process":14}],58:[function(require,module,exports){
+},{"_process":17}],61:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -7506,7 +7728,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],59:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 
 /**
@@ -7736,4 +7958,4 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./lib/Promise":42,"./lib/TimeoutError":44,"./lib/apply":45,"./lib/decorators/array":46,"./lib/decorators/flow":47,"./lib/decorators/fold":48,"./lib/decorators/inspect":49,"./lib/decorators/iterate":50,"./lib/decorators/progress":51,"./lib/decorators/timed":52,"./lib/decorators/unhandledRejection":53,"./lib/decorators/with":54}]},{},[1]);
+},{"./lib/Promise":45,"./lib/TimeoutError":47,"./lib/apply":48,"./lib/decorators/array":49,"./lib/decorators/flow":50,"./lib/decorators/fold":51,"./lib/decorators/inspect":52,"./lib/decorators/iterate":53,"./lib/decorators/progress":54,"./lib/decorators/timed":55,"./lib/decorators/unhandledRejection":56,"./lib/decorators/with":57}]},{},[1]);

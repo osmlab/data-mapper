@@ -180,3 +180,10 @@ map.on('style.load', function(e) {
     }
 
 });
+
+// Export module
+// if (window.mapboxgl) {
+//     mapboxgl.dataMapper = dataMapper;
+// } else if (typeof module !== 'undefined') {
+//     module.exports = dataMapper;
+// }
