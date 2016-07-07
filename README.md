@@ -14,6 +14,7 @@ Every data mapping project needs to have these components:
 - A [Mapbox tileset ID](https://www.mapbox.com/api-documentation/#uploads) that contains data to be overlaid onto the map
 - A [GL style](https://www.mapbox.com/mapbox-gl-style-spec/) blurb that defines how to visualize this data
 - A [Mapbox dataset ID](https://www.mapbox.com/api-documentation/#datasets) to store the data of the review markers
+- A data review form for the details to be captured on the review markers
 
 Instructions on how to customize will be updated afetr https://github.com/osmlab/data-mapper/issues/5
 
