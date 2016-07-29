@@ -2,6 +2,7 @@
 var Config = require('./config');
 var mapboxglUtils = require('./mapbox-gl-utils');
 mapboxgl.accessToken = Config.accessToken;
+var Merge = require('merge');
 
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
@@ -13,9 +14,9 @@ var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 var reviewer;
 var _tmp = {};
 
-// Inherit map settings from config
+// Configure map creation options
 // https://www.mapbox.com/mapbox-gl-js/api/#Map
-var mapOptions = $.extend({
+var mapOptions = Merge({
     hash: true
 }, Config.map);
 
@@ -29,9 +30,7 @@ map.addControl(new mapboxgl.Navigation());
 
 
 // Layer for review markers
-var overlayDataSource = new mapboxgl.GeoJSONSource({
-    data: {}
-});
+var overlayDataSource = new mapboxgl.GeoJSONSource();
 
 var overlayData = {
     'id': 'overlayData',
@@ -59,7 +58,7 @@ map.on('style.load', function(e) {
 
         mapboxglUtils.addMapboxLayers(map, ['data-review', 'mapillary', 'toronto', 'osm-navigation']);
 
-        getOverlayFeatures();
+        mapboxglUtils.getOverlayFeatures();
 
         map.on('click', function(e) {
 

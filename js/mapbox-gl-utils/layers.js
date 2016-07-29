@@ -3,7 +3,7 @@
 //
 
 var customLayers = require('../layers').layers;
-var merge = require('merge');
+var Merge = require('merge');
 
 // Configuration for some layers
 var mapillaryRestrictionsFilter = ["in", "value", "regulatory--no-left-turn--us", "regulatory--no-right-turn--us", "regulatory--no-straight-through--us", "regulatory--no-u-turn--us", "regulatory--no-left-or-u-turn--us", "regulatory--no-left-turn--ca", "regulatory--no-right-turn--ca", "regulatory--no-straight-through--ca", "regulatory--no-u-turn--ca", "regulatory--no-left-or-u-turn--ca"]
@@ -160,5 +160,5 @@ var mapboxLayers = {
 
 // Export module
 module.exports = {
-  layers: merge(mapboxLayers,customLayers)
+  layers: Merge(mapboxLayers,customLayers)
 };
