@@ -1,28 +1,64 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-// Mapbox Configuration
+// Configure the source layer that you want to use to add to the target
+// Reference: The reference data source used to compare data
+// Validation: The validation style layer used to compare with the source
+var project = {
+    name: 'Toronto Turn Restrictions',
+    map: {
+        container: 'map',
+        style: 'mapbox://styles/mapbox/light-v9',
+        center: [-79.38, 43.65],
+        zoom: 16
+    },
+    accessToken: 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ',
+    layers: [{
+        source: {
+            layer: ['toronto'],
+            layer_url: 'http://www1.toronto.ca/wps/portal/contentonly?vgnextoid=c61136899e02b210VgnVCM1000003dd60f89RCRD&vgnextchannel=7807e03bb8d1e310VgnVCM10000071d60f89RCRD',
+            attribution: 'Contains information licensed under the Open Government Licence – Toronto',
+            attribution_url: 'http://www1.toronto.ca/wps/portal/contentonly?vgnextoid=4a37e03bb8d1e310VgnVCM10000071d60f89RCRD',
+            published_date: '01-03-2016'
+        },
+        target: {
+            layer: ['osm-navigation']
+        }
+    }],
+    dataset: {
+        layer: ['data-review'],
+        user: 'theplanemad',
+        accessToken: 'sk.eyJ1IjoidGhlcGxhbmVtYWQiLCJhIjoiY2lyN2RobWgyMDAwOGlrbWdkbWp2cWdjNiJ9.AnPKx0Iqk-uzARdoOthoFg',
+        mapid: 'cir7dq562000eiflw3vesbh88'
+    }
+}
+
+// Export module
+module.exports = project;
+
+},{}],2:[function(require,module,exports){
+// Project Settings
+var Config = require('./config');
 var mapboxglUtils = require('./mapbox-gl-utils');
+mapboxgl.accessToken = Config.accessToken;
+
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
 var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
 var mapboxAccessDatasetToken = 'sk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiY2lvdHNnd2xmMDBjb3VvbThmaXlsbnd5dCJ9.7Ui7o2K3U6flUzDGvYNZJw';
-var styleID = 'mapbox/light-v9';
-mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ';
 var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 
-// var mapLayers = require('map-layers');
+
 var reviewer;
 var _tmp = {};
 
+// Inherit map settings from config
+// https://www.mapbox.com/mapbox-gl-js/api/#Map
+var mapOptions = $.extend({
+    hash: true
+}, Config.map);
 
-var map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/' + styleID,
-    center: [-79.38, 43.65], // starting position
-    zoom: 16, // starting zoom
-    hash: true,
-    attributionControl: false
-});
+var map = new mapboxgl.Map(mapOptions);
 
+// Add default controls
 var geolocate = map.addControl(new mapboxgl.Geolocate({
     position: 'bottom-right'
 }));
@@ -52,7 +88,6 @@ var overlayData = {
 // Map ready
 map.on('style.load', function(e) {
     init();
-
 
     function init() {
 
@@ -143,271 +178,9 @@ map.on('style.load', function(e) {
 
     }
 
-
-    // Get data from a Mapbox dataset
-    var overlayFeatureCollection = {
-        'type': 'FeatureCollection',
-        'features': []
-    };
-
-    function getOverlayFeatures(startID) {
-
-        var url = DATASETS_BASE + 'features';
-        var params = {
-            'access_token': mapboxAccessDatasetToken
-        };
-
-        // Begin with the last feature of previous request
-        if (startID) {
-            params.start = startID;
-        }
-
-        $.getJSON(url, params, function(data) {
-
-            console.log(data);
-
-            if (data.features.length) {
-                data.features.forEach(function(feature) {
-                    // Add dataset feature id as a property
-                    feature.properties.id = feature.id;
-                });
-                overlayFeatureCollection.features = overlayFeatureCollection.features.concat(data.features);
-                var lastFeatureID = data.features[data.features.length - 1].id;
-                getOverlayFeatures(lastFeatureID);
-                overlayDataSource.setData(overlayFeatureCollection);
-            }
-            overlayDataSource.setData(overlayFeatureCollection);
-        });
-    }
-
 });
 
-// Export module
-// if (window.mapboxgl) {
-//     mapboxgl.dataMapper = dataMapper;
-// } else if (typeof module !== 'undefined') {
-//     module.exports = dataMapper;
-// }
-
-},{"./mapbox-gl-utils":2,"mapbox/lib/services/datasets":15}],2:[function(require,module,exports){
-// Utility functions to work with Mapbox GL JS maps
-// Requires mapbox-gl.js and jquery
-
-// API
-module.exports.addMapboxLayers = addMapboxLayers;
-module.exports.queryLayerFeatures = queryLayerFeatures;
-module.exports.createHTML = createHTML;
-
-// Dependencies
-var mapboxLayers = require('./layers').layers;
-
-
-// Toggle visibility of a layer
-function toggle(id) {
-    var currentState = map.getLayoutProperty(id, 'visibility');
-    var nextState = currentState === 'none' ? 'visible' : 'none';
-    map.setLayoutProperty(id, 'visibility', nextState);
-}
-
-// Hide all except one layer from a group
-function showOnlyLayers(toggleLayers, showLayerItem) {
-    for (var layerItem in toggleLayers) {
-        for (var layer in toggleLayers[layerItem].layers) {
-            if (showLayerItem == layerItem)
-                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'visible');
-            else
-                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'none');
-        }
-    }
-    // Highlight menu items
-    $('.toggles a').removeClass('active');
-    $('#' + showLayerItem).addClass('active');
-}
-
-// Toggle a set of filters for a set of layers
-function toggleLayerFilters(layerItems, filterItem) {
-
-    for (var i in layerItems) {
-        for (var j in toggleLayers[layerItems[i]].layers) {
-
-            var existingFilter = map.getFilter(toggleLayers[layerItems[i]].layers[j]);
-
-            // Construct and add the filters if none exist for the layers
-            if (typeof existingFilter == 'undefined') {
-                map.setFilter(toggleLayers[layerItems[i]].layers[j], toggleFilters[filterItem].filter);
-            } else {
-                // Not implemented
-                var newFilter = mergeLayerFilters(existingFilter, toggleFilters[filterItem].filter);
-                map.setFilter(toggleLayers[layerItems[i]].layers[j], newFilter);
-                // console.log(newFilter);
-            }
-
-        }
-    }
-}
-
-// Parse the toggleFilters to build the compound filter arrays
-function parseToggleFilters() {
-    for (var filterItem in toggleFilters) {
-
-        var parsedFilter = new Array();
-        parsedFilter.push(toggleFilters[filterItem]['filter-mode']);
-
-        for (var value in toggleFilters[filterItem]['filter-values']) {
-            var filter = new Array();
-            filter.push(toggleFilters[filterItem]['filter-compare'][0], toggleFilters[filterItem]['filter-compare'][1], toggleFilters[filterItem]['filter-values'][value]);
-            parsedFilter.push(filter);
-        }
-
-        toggleFilters[filterItem]['filter'] = parsedFilter;
-    }
-}
-
-// Merge two GL layer filters into one
-function mergeLayerFilters(existingFilter, mergeFilter) {
-    var newFilter = new Array();
-
-    // If the layer has a simple single filter
-    if (existingFilter[0] == '==') {
-        newFilter.push("all", existingFilter, mergeFilter)
-    }
-
-    return newFilter;
-}
-
-// Return a square bbox of pixel coordinates from a given x,y point
-function pixelPointToSquare(point, width) {
-    var pointToSquare = [
-        [point.x - width / 2, point.y - width / 2],
-        [point.x + width / 2, point.y + width / 2]
-    ];
-    return pointToSquare;
-}
-
-
-//
-// OpenStreetMap Utilities
-//
-
-// Return features near a paoint from a set of map layers
-function queryLayerFeatures(map, point, opts) {
-
-    var queryResults = map.queryRenderedFeatures(pixelPointToSquare(point, opts.radius), {
-        layers: opts.layers
-    });
-
-    return queryResults;
-
-}
-
-//Open map location in JOSM
-function openInJOSM(map, opts) {
-    var bounds = map.getBounds();
-    var top = bounds.getNorth();
-    var bottom = bounds.getSouth();
-    var left = bounds.getWest();
-    var right = bounds.getEast();
-    // var josmUrl = 'https://127.0.0.1:8112/load_and_zoom?left='+left+'&right='+right+'&top='+top+'&bottom='+bottom;
-    var josmUrl = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
-    $.ajax(josmUrl, function() {});
-}
-
-
-function createHTML(map, type, opts) {
-    var HTML, url, obj_type;
-    if ('open-obj-in-josm-button') {
-        if (opts) {
-            node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
-            url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
-        } else {
-            var bounds = map.getBounds();
-            var top = bounds.getNorth();
-            var bottom = bounds.getSouth();
-            var left = bounds.getWest();
-            var right = bounds.getEast();
-            url = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
-        }
-    }
-    HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
-    return HTML;
-}
-
-
-// Configure layer names for base map for proper layer positioning
-var mapboxLayerIDs = {
-    "water": "water",
-    "label": "poi-scalerank3",
-    "roads": "tunnel-street-low"
-}
-
-
-// Add commonly used data layers and styles to a Mapbox map
-function addMapboxLayers(map, layers) {
-
-    for (var i in layers) {
-        if (layers[i] in mapboxLayers) {
-
-            // Add the defined source and layers for each group
-            var groupName = layers[i];
-
-            for (var j in mapboxLayers[layers[i]].groups) {
-
-                // Add the group source
-                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
-                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
-
-                // Add the group style layers
-                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
-
-                    // Generate unique layer ID and source
-                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
-                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
-                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
-                    }
-                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
-
-                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
-
-                }
-            }
-        }
-        //Add Mapillary JS viewer on clicking a photograph location
-        if (layers[i] == 'mapillary') {
-
-            var mly = new Mapillary.Viewer(
-                'mapillary-viewer',
-                'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh'
-            );
-
-            map.on('click', function(e) {
-
-                document.getElementById('mapillary-viewer').style.visibility = "visible";
-
-                var clickedFeatures = queryLayerFeatures(map, e.point, {
-                    layers: ['mapillary traffic-sign location'],
-                    radius: 15
-                });
-
-
-                if (clickedFeatures.length) {
-                    console.log(clickedFeatures);
-
-                    var imageKey = clickedFeatures[0].properties.image_key;
-                    var imageUrl = 'https://d1cuyjsrcm0gby.cloudfront.net/' + imageKey + '/thumb-2048.jpg';
-
-                    mly.moveToKey(imageKey);
-
-                    //openInJOSM();
-                } else {
-                    document.getElementById('mapillary-viewer').style.visibility = "none";
-                }
-            });
-        }
-
-    }
-}
-
-},{"./layers":4}],3:[function(require,module,exports){
+},{"./config":1,"./mapbox-gl-utils":5,"mapbox/lib/services/datasets":17}],3:[function(require,module,exports){
 //
 // Definition of Mapbox source layers and corresponding GL styles to overlay
 //
@@ -673,11 +446,276 @@ module.exports = {
 };
 
 },{}],4:[function(require,module,exports){
+// Project Settings
+// var Project = require('./project');
+
+// Get data from a Mapbox dataset
+var overlayFeatureCollection = {
+    'type': 'FeatureCollection',
+    'features': []
+};
+
+function getOverlayFeatures(startID) {
+
+    var url = 'https://api.mapbox.com/datasets/v1/' + Project.dataset.user + '/' + Project.dataset.id + '/features';
+
+    var params = {
+        'access_token': Project.dataset.accessToken
+    };
+
+    // Begin with the last feature of previous request
+    if (startID) {
+        params.start = startID;
+    }
+
+    $.getJSON(url, params, function(data) {
+
+        console.log(data);
+
+        if (data.features.length) {
+            data.features.forEach(function(feature) {
+                // Add dataset feature id as a property
+                feature.properties.id = feature.id;
+            });
+            overlayFeatureCollection.features = overlayFeatureCollection.features.concat(data.features);
+            var lastFeatureID = data.features[data.features.length - 1].id;
+            getOverlayFeatures(lastFeatureID);
+            overlayDataSource.setData(overlayFeatureCollection);
+        }
+        overlayDataSource.setData(overlayFeatureCollection);
+    });
+}
+
+// Export module
+module.exports = {
+  dataset: 'a'
+};
+
+},{}],5:[function(require,module,exports){
+// Utility functions to work with Mapbox GL JS maps
+// Requires mapbox-gl.js and jquery
+
+// Dependencies
+var mapboxLayers = require('./layers').layers;
+var mapboxDataset = require('./dataset');
+
+
+// Toggle visibility of a layer
+function toggle(id) {
+    var currentState = map.getLayoutProperty(id, 'visibility');
+    var nextState = currentState === 'none' ? 'visible' : 'none';
+    map.setLayoutProperty(id, 'visibility', nextState);
+}
+
+// Hide all except one layer from a group
+function showOnlyLayers(toggleLayers, showLayerItem) {
+    for (var layerItem in toggleLayers) {
+        for (var layer in toggleLayers[layerItem].layers) {
+            if (showLayerItem == layerItem)
+                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'visible');
+            else
+                map.setLayoutProperty(toggleLayers[layerItem].layers[layer], 'visibility', 'none');
+        }
+    }
+    // Highlight menu items
+    $('.toggles a').removeClass('active');
+    $('#' + showLayerItem).addClass('active');
+}
+
+// Toggle a set of filters for a set of layers
+function toggleLayerFilters(layerItems, filterItem) {
+
+    for (var i in layerItems) {
+        for (var j in toggleLayers[layerItems[i]].layers) {
+
+            var existingFilter = map.getFilter(toggleLayers[layerItems[i]].layers[j]);
+
+            // Construct and add the filters if none exist for the layers
+            if (typeof existingFilter == 'undefined') {
+                map.setFilter(toggleLayers[layerItems[i]].layers[j], toggleFilters[filterItem].filter);
+            } else {
+                // Not implemented
+                var newFilter = mergeLayerFilters(existingFilter, toggleFilters[filterItem].filter);
+                map.setFilter(toggleLayers[layerItems[i]].layers[j], newFilter);
+                // console.log(newFilter);
+            }
+
+        }
+    }
+}
+
+// Parse the toggleFilters to build the compound filter arrays
+function parseToggleFilters() {
+    for (var filterItem in toggleFilters) {
+
+        var parsedFilter = new Array();
+        parsedFilter.push(toggleFilters[filterItem]['filter-mode']);
+
+        for (var value in toggleFilters[filterItem]['filter-values']) {
+            var filter = new Array();
+            filter.push(toggleFilters[filterItem]['filter-compare'][0], toggleFilters[filterItem]['filter-compare'][1], toggleFilters[filterItem]['filter-values'][value]);
+            parsedFilter.push(filter);
+        }
+
+        toggleFilters[filterItem]['filter'] = parsedFilter;
+    }
+}
+
+// Merge two GL layer filters into one
+function mergeLayerFilters(existingFilter, mergeFilter) {
+    var newFilter = new Array();
+
+    // If the layer has a simple single filter
+    if (existingFilter[0] == '==') {
+        newFilter.push("all", existingFilter, mergeFilter)
+    }
+
+    return newFilter;
+}
+
+// Return a square bbox of pixel coordinates from a given x,y point
+function pixelPointToSquare(point, width) {
+    var pointToSquare = [
+        [point.x - width / 2, point.y - width / 2],
+        [point.x + width / 2, point.y + width / 2]
+    ];
+    return pointToSquare;
+}
+
+
+//
+// OpenStreetMap Utilities
+//
+
+// Return features near a paoint from a set of map layers
+function queryLayerFeatures(map, point, opts) {
+
+    var queryResults = map.queryRenderedFeatures(pixelPointToSquare(point, opts.radius), {
+        layers: opts.layers
+    });
+
+    return queryResults;
+
+}
+
+//Open map location in JOSM
+function openInJOSM(map, opts) {
+    var bounds = map.getBounds();
+    var top = bounds.getNorth();
+    var bottom = bounds.getSouth();
+    var left = bounds.getWest();
+    var right = bounds.getEast();
+    // var josmUrl = 'https://127.0.0.1:8112/load_and_zoom?left='+left+'&right='+right+'&top='+top+'&bottom='+bottom;
+    var josmUrl = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
+    $.ajax(josmUrl, function() {});
+}
+
+
+function createHTML(map, type, opts) {
+    var HTML, url, obj_type;
+    if ('open-obj-in-josm-button') {
+        if (opts) {
+            node_ids = ',n' + opts.select_node_ids[0] + ',n' + opts.select_node_ids[1];
+            url = 'http://127.0.0.1:8111/load_object?new_layer=true&objects=' + opts.obj_type + opts.obj_id + node_ids + '&relation_members=true';
+        } else {
+            var bounds = map.getBounds();
+            var top = bounds.getNorth();
+            var bottom = bounds.getSouth();
+            var left = bounds.getWest();
+            var right = bounds.getEast();
+            url = 'http://127.0.0.1:8111/load_and_zoom?left=' + left + '&right=' + right + '&top=' + top + '&bottom=' + bottom;
+        }
+    }
+    HTML = '<a class="button short" target="_blank" href=' + url + '>Open in JOSM</a>';
+    return HTML;
+}
+
+
+// Configure layer names for base map for proper layer positioning
+var mapboxLayerIDs = {
+    "water": "water",
+    "label": "poi-scalerank3",
+    "roads": "tunnel-street-low"
+}
+
+
+// Add commonly used data layers and styles to a Mapbox map
+function addMapboxLayers(map, layers) {
+
+    for (var i in layers) {
+        if (layers[i] in mapboxLayers) {
+
+            // Add the defined source and layers for each group
+            var groupName = layers[i];
+
+            for (var j in mapboxLayers[layers[i]].groups) {
+
+                // Add the group source
+                var sourceName = groupName + ' ' + mapboxLayers[layers[i]].groups[j].name;
+                map.addSource(sourceName, mapboxLayers[layers[i]].groups[j].source);
+
+                // Add the group style layers
+                for (var k in mapboxLayers[layers[i]].groups[j].layers) {
+
+                    // Generate unique layer ID and source
+                    if ("name" in mapboxLayers[layers[i]].groups[j].layers[k]) {
+                        mapboxLayers[layers[i]].groups[j].layers[k]["id"] = sourceName + ' ' + mapboxLayers[layers[i]].groups[j].layers[k].name;
+                        delete mapboxLayers[layers[i]].groups[j].layers[k]["name"];
+                    }
+                    mapboxLayers[layers[i]].groups[j].layers[k]["source"] = sourceName;
+
+                    map.addLayer(mapboxLayers[layers[i]].groups[j].layers[k]);
+
+                }
+            }
+        }
+        //Add Mapillary JS viewer on clicking a photograph location
+        if (layers[i] == 'mapillary') {
+
+            var mly = new Mapillary.Viewer(
+                'mapillary-viewer',
+                'MFo5YmpwMmxHMmxJaUt3VW14c0ZCZzoyMTgwOGNmZDljZjBmYjFh'
+            );
+
+            map.on('click', function(e) {
+
+                document.getElementById('mapillary-viewer').style.visibility = "visible";
+
+                var clickedFeatures = queryLayerFeatures(map, e.point, {
+                    layers: ['mapillary traffic-sign location'],
+                    radius: 15
+                });
+
+
+                if (clickedFeatures.length) {
+                    console.log(clickedFeatures);
+
+                    var imageKey = clickedFeatures[0].properties.image_key;
+                    var imageUrl = 'https://d1cuyjsrcm0gby.cloudfront.net/' + imageKey + '/thumb-2048.jpg';
+
+                    mly.moveToKey(imageKey);
+
+                    //openInJOSM();
+                } else {
+                    document.getElementById('mapillary-viewer').style.visibility = "none";
+                }
+            });
+        }
+
+    }
+}
+
+// API
+module.exports.addMapboxLayers = addMapboxLayers;
+module.exports.queryLayerFeatures = queryLayerFeatures;
+module.exports.createHTML = createHTML;
+
+},{"./dataset":4,"./layers":6}],6:[function(require,module,exports){
 //
 // Definition of some common Mapbox source layers and corresponding GL styles
 //
 
-var customLayers = require('./layers-toronto-restrictions').layers;
+var customLayers = require('../layers').layers;
 var merge = require('merge');
 
 // Configuration for some layers
@@ -833,12 +871,12 @@ var mapboxLayers = {
     }
 }
 
-// Merge external
+// Export module
 module.exports = {
   layers: merge(mapboxLayers,customLayers)
 };
 
-},{"./layers-toronto-restrictions":3,"merge":16}],5:[function(require,module,exports){
+},{"../layers":3,"merge":18}],7:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1199,7 +1237,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":44}],6:[function(require,module,exports){
+},{"util/":46}],8:[function(require,module,exports){
 /**
  * @alias geojsonhint
  * @param {(string|object)} GeoJSON given as a string or as an object
@@ -1531,7 +1569,7 @@ function hint(gj, options) {
 
 module.exports.hint = hint;
 
-},{}],7:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var hat = module.exports = function (bits, base) {
     if (!base) base = 16;
     if (bits === undefined) bits = 128;
@@ -1595,7 +1633,7 @@ hat.rack = function (bits, base, expandBy) {
     return fn;
 };
 
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1620,14 +1658,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = function(str) {
   return window.atob(str);
 };
 
-},{}],10:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 'use strict';
 
 var interceptor = require('rest/interceptor');
@@ -1659,7 +1697,7 @@ var callbackify = interceptor({
 
 module.exports = callbackify;
 
-},{"rest/interceptor":23}],11:[function(require,module,exports){
+},{"rest/interceptor":25}],13:[function(require,module,exports){
 'use strict';
 
 var rest = require('rest');
@@ -1678,7 +1716,7 @@ module.exports = function(config) {
     .wrap(callbackify);
 };
 
-},{"./callbackify":10,"rest":19,"rest/interceptor/defaultRequest":24,"rest/interceptor/errorCode":25,"rest/interceptor/mime":26,"rest/interceptor/pathPrefix":27,"rest/interceptor/template":28}],12:[function(require,module,exports){
+},{"./callbackify":12,"rest":21,"rest/interceptor/defaultRequest":26,"rest/interceptor/errorCode":27,"rest/interceptor/mime":28,"rest/interceptor/pathPrefix":29,"rest/interceptor/template":30}],14:[function(require,module,exports){
 // We keep all of the constants that declare endpoints in one
 // place, so that we could concievably update this for API layout
 // revisions.
@@ -1701,7 +1739,7 @@ module.exports.API_TILESTATS_LAYER = '/tilestats/v1/{owner}/{tileset}/{layer}';
 module.exports.API_TILESTATS_ATTRIBUTE = '/tilestats/v1/{owner}/{tileset}/{layer}/{attribute}';
 module.exports.API_STATIC = '/v4/{mapid}{+overlay}/{+xyz}/{width}x{height}{+retina}{.format}';
 
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -1742,7 +1780,7 @@ function getUser(token) {
 module.exports = getUser;
 
 }).call(this,require('_process'))
-},{"_process":17,"atob":9}],14:[function(require,module,exports){
+},{"_process":19,"atob":11}],16:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert');
@@ -1800,7 +1838,7 @@ function makeService(name) {
 
 module.exports = makeService;
 
-},{"./client":11,"./constants":12,"./get_user":13,"assert":5}],15:[function(require,module,exports){
+},{"./client":13,"./constants":14,"./get_user":15,"assert":7}],17:[function(require,module,exports){
 'use strict';
 
 var assert = require('assert'),
@@ -2363,7 +2401,7 @@ Datasets.prototype.bulkFeatureUpdate = function(update, dataset, callback) {
   });
 };
 
-},{"../constants":12,"../make_service":14,"assert":5,"geojsonhint/object":6,"hat":7}],16:[function(require,module,exports){
+},{"../constants":14,"../make_service":16,"assert":7,"geojsonhint/object":8,"hat":9}],18:[function(require,module,exports){
 /*!
  * @name JavaScript/NodeJS Merge v1.2.0
  * @author yeikos
@@ -2539,7 +2577,7 @@ Datasets.prototype.bulkFeatureUpdate = function(update, dataset, callback) {
 	}
 
 })(typeof module === 'object' && module && typeof module.exports === 'object' && module.exports);
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2635,7 +2673,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],18:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2866,7 +2904,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./util/mixin":38}],19:[function(require,module,exports){
+},{"./util/mixin":40}],21:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2893,7 +2931,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client/default":21,"./client/xhr":22}],20:[function(require,module,exports){
+},{"./client/default":23,"./client/xhr":24}],22:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -2959,7 +2997,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3085,7 +3123,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../client":20}],22:[function(require,module,exports){
+},{"../client":22}],24:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3261,7 +3299,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":18,"../client":20,"../util/normalizeHeaderName":39,"../util/responsePromise":40,"when":62}],23:[function(require,module,exports){
+},{"../UrlBuilder":20,"../client":22,"../util/normalizeHeaderName":41,"../util/responsePromise":42,"when":64}],25:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3428,7 +3466,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./client":20,"./client/default":21,"./util/mixin":38,"./util/responsePromise":40,"when":62}],24:[function(require,module,exports){
+},{"./client":22,"./client/default":23,"./util/mixin":40,"./util/responsePromise":42,"when":64}],26:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3509,7 +3547,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":23,"../util/mixin":38}],25:[function(require,module,exports){
+},{"../interceptor":25,"../util/mixin":40}],27:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3558,7 +3596,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":23,"when":62}],26:[function(require,module,exports){
+},{"../interceptor":25,"when":64}],28:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3670,7 +3708,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":23,"../mime":29,"../mime/registry":30,"when":62}],27:[function(require,module,exports){
+},{"../interceptor":25,"../mime":31,"../mime/registry":32,"when":64}],29:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3731,7 +3769,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../UrlBuilder":18,"../interceptor":23}],28:[function(require,module,exports){
+},{"../UrlBuilder":20,"../interceptor":25}],30:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3789,7 +3827,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../interceptor":23,"../util/mixin":38,"../util/uriTemplate":42}],29:[function(require,module,exports){
+},{"../interceptor":25,"../util/mixin":40,"../util/uriTemplate":44}],31:[function(require,module,exports){
 /*
 * Copyright 2014 the original author or authors
 * @license MIT, see LICENSE.txt for details
@@ -3844,7 +3882,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],30:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /*
  * Copyright 2012-2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -3961,7 +3999,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../mime":29,"./type/application/hal":31,"./type/application/json":32,"./type/application/x-www-form-urlencoded":33,"./type/multipart/form-data":34,"./type/text/plain":35,"when":62}],31:[function(require,module,exports){
+},{"../mime":31,"./type/application/hal":33,"./type/application/json":34,"./type/application/x-www-form-urlencoded":35,"./type/multipart/form-data":36,"./type/text/plain":37,"when":64}],33:[function(require,module,exports){
 /*
  * Copyright 2013-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4102,7 +4140,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"../../../interceptor/pathPrefix":27,"../../../interceptor/template":28,"../../../util/find":36,"../../../util/lazyPromise":37,"../../../util/responsePromise":40,"when":62}],32:[function(require,module,exports){
+},{"../../../interceptor/pathPrefix":29,"../../../interceptor/template":30,"../../../util/find":38,"../../../util/lazyPromise":39,"../../../util/responsePromise":42,"when":64}],34:[function(require,module,exports){
 /*
  * Copyright 2012-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4151,7 +4189,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],33:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4243,7 +4281,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],34:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 /*
  * Copyright 2014 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4318,7 +4356,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],35:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4349,7 +4387,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],36:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4392,7 +4430,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],37:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 /*
  * Copyright 2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4449,7 +4487,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"when":62}],38:[function(require,module,exports){
+},{"when":64}],40:[function(require,module,exports){
 /*
  * Copyright 2012-2013 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4499,7 +4537,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],39:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 /*
  * Copyright 2012 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4539,7 +4577,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],40:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 /*
  * Copyright 2014-2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4681,7 +4719,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./normalizeHeaderName":39,"when":62}],41:[function(require,module,exports){
+},{"./normalizeHeaderName":41,"when":64}],43:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -4863,7 +4901,7 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{}],42:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 /*
  * Copyright 2015 the original author or authors
  * @license MIT, see LICENSE.txt for details
@@ -5037,14 +5075,14 @@ process.umask = function() { return 0; };
 	// Boilerplate for AMD and Node
 ));
 
-},{"./uriEncoder":41}],43:[function(require,module,exports){
+},{"./uriEncoder":43}],45:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],44:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5634,7 +5672,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":43,"_process":17,"inherits":8}],45:[function(require,module,exports){
+},{"./support/isBuffer":45,"_process":19,"inherits":10}],47:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5653,7 +5691,7 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./Scheduler":46,"./env":58,"./makePromise":60}],46:[function(require,module,exports){
+},{"./Scheduler":48,"./env":60,"./makePromise":62}],48:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5735,7 +5773,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],47:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5763,7 +5801,7 @@ define(function() {
 	return TimeoutError;
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
-},{}],48:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -5820,7 +5858,7 @@ define(function() {
 
 
 
-},{}],49:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6111,7 +6149,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../apply":48,"../state":61}],50:[function(require,module,exports){
+},{"../apply":50,"../state":63}],52:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6273,7 +6311,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],51:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6302,7 +6340,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],52:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6324,7 +6362,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../state":61}],53:[function(require,module,exports){
+},{"../state":63}],55:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6391,7 +6429,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],54:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6417,7 +6455,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],55:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6497,7 +6535,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../TimeoutError":47,"../env":58}],56:[function(require,module,exports){
+},{"../TimeoutError":49,"../env":60}],58:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6585,7 +6623,7 @@ define(function(require) {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
-},{"../env":58,"../format":59}],57:[function(require,module,exports){
+},{"../env":60,"../format":61}],59:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6625,7 +6663,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 
-},{}],58:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -6702,7 +6740,7 @@ define(function(require) {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(require); }));
 
 }).call(this,require('_process'))
-},{"_process":17}],59:[function(require,module,exports){
+},{"_process":19}],61:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -6760,7 +6798,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],60:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 (function (process){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
@@ -7691,7 +7729,7 @@ define(function() {
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
 }).call(this,require('_process'))
-},{"_process":17}],61:[function(require,module,exports){
+},{"_process":19}],63:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
@@ -7728,7 +7766,7 @@ define(function() {
 });
 }(typeof define === 'function' && define.amd ? define : function(factory) { module.exports = factory(); }));
 
-},{}],62:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 /** @license MIT License (c) copyright 2010-2014 original author or authors */
 
 /**
@@ -7958,4 +7996,4 @@ define(function (require) {
 });
 })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
 
-},{"./lib/Promise":45,"./lib/TimeoutError":47,"./lib/apply":48,"./lib/decorators/array":49,"./lib/decorators/flow":50,"./lib/decorators/fold":51,"./lib/decorators/inspect":52,"./lib/decorators/iterate":53,"./lib/decorators/progress":54,"./lib/decorators/timed":55,"./lib/decorators/unhandledRejection":56,"./lib/decorators/with":57}]},{},[1]);
+},{"./lib/Promise":47,"./lib/TimeoutError":49,"./lib/apply":50,"./lib/decorators/array":51,"./lib/decorators/flow":52,"./lib/decorators/fold":53,"./lib/decorators/inspect":54,"./lib/decorators/iterate":55,"./lib/decorators/progress":56,"./lib/decorators/timed":57,"./lib/decorators/unhandledRejection":58,"./lib/decorators/with":59}]},{},[2]);

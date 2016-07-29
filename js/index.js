@@ -1,27 +1,27 @@
-// Mapbox Configuration
+// Project Settings
+var Config = require('./config');
 var mapboxglUtils = require('./mapbox-gl-utils');
+mapboxgl.accessToken = Config.accessToken;
+
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
 var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
 var mapboxAccessDatasetToken = 'sk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiY2lvdHNnd2xmMDBjb3VvbThmaXlsbnd5dCJ9.7Ui7o2K3U6flUzDGvYNZJw';
-var styleID = 'mapbox/light-v9';
-mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ';
 var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 
-// var mapLayers = require('map-layers');
+
 var reviewer;
 var _tmp = {};
 
+// Inherit map settings from config
+// https://www.mapbox.com/mapbox-gl-js/api/#Map
+var mapOptions = $.extend({
+    hash: true
+}, Config.map);
 
-var map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/' + styleID,
-    center: [-79.38, 43.65], // starting position
-    zoom: 16, // starting zoom
-    hash: true,
-    attributionControl: false
-});
+var map = new mapboxgl.Map(mapOptions);
 
+// Add default controls
 var geolocate = map.addControl(new mapboxgl.Geolocate({
     position: 'bottom-right'
 }));
@@ -51,7 +51,6 @@ var overlayData = {
 // Map ready
 map.on('style.load', function(e) {
     init();
-
 
     function init() {
 
@@ -142,48 +141,4 @@ map.on('style.load', function(e) {
 
     }
 
-
-    // Get data from a Mapbox dataset
-    var overlayFeatureCollection = {
-        'type': 'FeatureCollection',
-        'features': []
-    };
-
-    function getOverlayFeatures(startID) {
-
-        var url = DATASETS_BASE + 'features';
-        var params = {
-            'access_token': mapboxAccessDatasetToken
-        };
-
-        // Begin with the last feature of previous request
-        if (startID) {
-            params.start = startID;
-        }
-
-        $.getJSON(url, params, function(data) {
-
-            console.log(data);
-
-            if (data.features.length) {
-                data.features.forEach(function(feature) {
-                    // Add dataset feature id as a property
-                    feature.properties.id = feature.id;
-                });
-                overlayFeatureCollection.features = overlayFeatureCollection.features.concat(data.features);
-                var lastFeatureID = data.features[data.features.length - 1].id;
-                getOverlayFeatures(lastFeatureID);
-                overlayDataSource.setData(overlayFeatureCollection);
-            }
-            overlayDataSource.setData(overlayFeatureCollection);
-        });
-    }
-
 });
-
-// Export module
-// if (window.mapboxgl) {
-//     mapboxgl.dataMapper = dataMapper;
-// } else if (typeof module !== 'undefined') {
-//     module.exports = dataMapper;
-// }

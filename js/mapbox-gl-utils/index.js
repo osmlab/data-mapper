@@ -1,13 +1,9 @@
 // Utility functions to work with Mapbox GL JS maps
 // Requires mapbox-gl.js and jquery
 
-// API
-module.exports.addMapboxLayers = addMapboxLayers;
-module.exports.queryLayerFeatures = queryLayerFeatures;
-module.exports.createHTML = createHTML;
-
 // Dependencies
 var mapboxLayers = require('./layers').layers;
+var mapboxDataset = require('./dataset');
 
 
 // Toggle visibility of a layer
@@ -214,3 +210,8 @@ function addMapboxLayers(map, layers) {
 
     }
 }
+
+// API
+module.exports.addMapboxLayers = addMapboxLayers;
+module.exports.queryLayerFeatures = queryLayerFeatures;
+module.exports.createHTML = createHTML;

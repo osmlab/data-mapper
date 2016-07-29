@@ -2,7 +2,7 @@
 // Definition of some common Mapbox source layers and corresponding GL styles
 //
 
-var customLayers = require('./layers-toronto-restrictions').layers;
+var customLayers = require('../layers').layers;
 var merge = require('merge');
 
 // Configuration for some layers
@@ -158,7 +158,7 @@ var mapboxLayers = {
     }
 }
 
-// Merge external
+// Export module
 module.exports = {
   layers: merge(mapboxLayers,customLayers)
 };
