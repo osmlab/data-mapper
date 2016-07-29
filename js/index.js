@@ -1,9 +1,9 @@
 // Mapbox Configuration
 var mapboxglUtils = require('./mapbox-gl-utils');
 var MapboxClient = require('mapbox/lib/services/datasets');
-var datasetID = 'cipxubqqz0081hwks1vwhiir2';
-var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/planemad/' + datasetID + '/';
-var mapboxAccessDatasetToken = 'sk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiY2lvdHNnd2xmMDBjb3VvbThmaXlsbnd5dCJ9.7Ui7o2K3U6flUzDGvYNZJw';
+var datasetID = 'cir7dq562000eiflw3vesbh88';
+var DATASETS_BASE = 'https://api.mapbox.com/datasets/v1/theplanemad/' + datasetID + '/';
+var mapboxAccessDatasetToken = 'sk.eyJ1IjoidGhlcGxhbmVtYWQiLCJhIjoiY2lyN2RobWgyMDAwOGlrbWdkbWp2cWdjNiJ9.AnPKx0Iqk-uzARdoOthoFg';
 var styleID = 'mapbox/light-v9';
 mapboxgl.accessToken = 'pk.eyJ1IjoicGxhbmVtYWQiLCJhIjoiemdYSVVLRSJ9.g3lbg_eN0kztmsfIPxa9MQ';
 var mapbox = new MapboxClient(mapboxAccessDatasetToken);
