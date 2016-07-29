@@ -1,8 +1,7 @@
 // Project Settings
-var Config = require('./config');
+var map = require('./map');
 var mapboxglUtils = require('./mapbox-gl-utils');
-mapboxgl.accessToken = Config.accessToken;
-var Merge = require('merge');
+
 
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
@@ -13,20 +12,6 @@ var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 
 var reviewer;
 var _tmp = {};
-
-// Configure map creation options
-// https://www.mapbox.com/mapbox-gl-js/api/#Map
-var mapOptions = Merge({
-    hash: true
-}, Config.map);
-
-var map = new mapboxgl.Map(mapOptions);
-
-// Add default controls
-var geolocate = map.addControl(new mapboxgl.Geolocate({
-    position: 'bottom-right'
-}));
-map.addControl(new mapboxgl.Navigation());
 
 
 // Layer for review markers

@@ -38,10 +38,9 @@ module.exports = project;
 
 },{}],2:[function(require,module,exports){
 // Project Settings
-var Config = require('./config');
+var map = require('./map');
 var mapboxglUtils = require('./mapbox-gl-utils');
-mapboxgl.accessToken = Config.accessToken;
-var Merge = require('merge');
+
 
 var MapboxClient = require('mapbox/lib/services/datasets');
 var datasetID = 'cipxubqqz0081hwks1vwhiir2';
@@ -52,20 +51,6 @@ var mapbox = new MapboxClient(mapboxAccessDatasetToken);
 
 var reviewer;
 var _tmp = {};
-
-// Configure map creation options
-// https://www.mapbox.com/mapbox-gl-js/api/#Map
-var mapOptions = Merge({
-    hash: true
-}, Config.map);
-
-var map = new mapboxgl.Map(mapOptions);
-
-// Add default controls
-var geolocate = map.addControl(new mapboxgl.Geolocate({
-    position: 'bottom-right'
-}));
-map.addControl(new mapboxgl.Navigation());
 
 
 // Layer for review markers
@@ -181,7 +166,7 @@ map.on('style.load', function(e) {
 
 });
 
-},{"./config":1,"./mapbox-gl-utils":5,"mapbox/lib/services/datasets":18,"merge":19}],3:[function(require,module,exports){
+},{"./map":4,"./mapbox-gl-utils":6,"mapbox/lib/services/datasets":18}],3:[function(require,module,exports){
 //
 // Definition of Mapbox source layers and corresponding GL styles to overlay
 //
@@ -447,6 +432,30 @@ module.exports = {
 };
 
 },{}],4:[function(require,module,exports){
+// Dependencies
+var Config = require('./config');
+mapboxgl.accessToken = Config.accessToken;
+
+var Merge = require('merge');
+
+// Configure map creation options
+// https://www.mapbox.com/mapbox-gl-js/api/#Map
+var mapOptions = Merge({
+    hash: true
+}, Config.map);
+
+var map = new mapboxgl.Map(mapOptions);
+
+// Add default controls
+var geolocate = map.addControl(new mapboxgl.Geolocate({
+    position: 'bottom-right'
+}));
+map.addControl(new mapboxgl.Navigation());
+
+// Export module
+module.exports = map;
+
+},{"./config":1,"merge":19}],5:[function(require,module,exports){
 // Project Settings
 var Config = require('../config').mapping.status.dataset;
 
@@ -492,14 +501,13 @@ module.exports = {
   getOverlayFeatures: getOverlayFeatures
 };
 
-},{"../config":1}],5:[function(require,module,exports){
+},{"../config":1}],6:[function(require,module,exports){
 // Utility functions to work with Mapbox GL JS maps
 // Requires mapbox-gl.js and jquery
 
 // Dependencies
 var mapboxLayers = require('./layers').layers;
 var mapboxDataset = require('./dataset');
-var mapboxUI = require('./ui');
 
 
 // Toggle visibility of a layer
@@ -713,7 +721,7 @@ module.exports.queryLayerFeatures = queryLayerFeatures;
 module.exports.getOverlayFeatures = mapboxDataset.getOverlayFeatures;
 module.exports.createHTML = createHTML;
 
-},{"./dataset":4,"./layers":6,"./ui":7}],6:[function(require,module,exports){
+},{"./dataset":5,"./layers":7}],7:[function(require,module,exports){
 //
 // Definition of some common Mapbox source layers and corresponding GL styles
 //
@@ -879,11 +887,7 @@ module.exports = {
   layers: Merge(mapboxLayers,customLayers)
 };
 
-},{"../layers":3,"merge":19}],7:[function(require,module,exports){
-// Export module
-module.exports = ui;
-
-},{}],8:[function(require,module,exports){
+},{"../layers":3,"merge":19}],8:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!

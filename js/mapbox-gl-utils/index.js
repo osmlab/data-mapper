@@ -4,7 +4,6 @@
 // Dependencies
 var mapboxLayers = require('./layers').layers;
 var mapboxDataset = require('./dataset');
-var mapboxUI = require('./ui');
 
 
 // Toggle visibility of a layer
