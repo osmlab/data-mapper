@@ -6,7 +6,7 @@ var project = {
     name: 'Toronto Turn Restrictions',
     map: {
         container: 'map',
-        style: 'mapbox://styles/mapbox/light-v9',
+        style: 'mapbox://styles/mapbox/dark-v9',
         center: [-79.38, 43.65],
         zoom: 16
     },

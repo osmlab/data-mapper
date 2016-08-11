@@ -15,96 +15,29 @@
     <link href="https://www.mapbox.com/base/latest/base.css" rel="stylesheet">
     <script src='https://npmcdn.com/mapillary-js@1.4.1/dist/mapillary-js.min.js'></script>
     <link href='https://npmcdn.com/mapillary-js@1.4.1/dist/mapillary-js.min.css' rel='stylesheet' />
+
+    <link rel='stylesheet' href='style.css' type='text/css' />
 </head>
 
 <style type="text/css">
-    .mapname {
-        position: absolute;
-        top: 0;
-        left: 0;
-        text-align: left;
-        z-index: 6;
-        margin: 20px;
-        width: 30%;
-    }
 
-    .mapname h3 {
-        font-size: 18px;
-        line-height: 20px;
-    }
-
-    #map {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 100%;
-    }
-
-    #sidebar {
-        background: rgba(40, 53, 61, 0.23);
-    }
-
-    .toggles {
-        width: 320px;
-    }
-
-    .info {
-        width: 320px;
-        color: white;
-    }
-
-    .fill-darkblue-opaque {
-        background-color: rgba(34, 59, 83, 0.4);
-    }
-
-    .button.stroke:hover {
-        background-color: #3887be !important;
-        color: rgb(255, 255, 255) !important;
-    }
-
-    .button.stroke {
-        box-shadow: 0px 0px 0px 2px #223b53 inset !important;
-        color: white;
-    }
-
-    .micro {
-        font-weight: bold;
-    }
-
-    .mapboxgl-popup-close-button {
-        font-size: x-large;
-    }
 </style>
 
 <body>
     <!--[if lt IE 8]>
   <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
 <![endif]-->
-    <div class='mapname'>
-        <div>
-            <h3 class='fancy'>Open Navigation Map - Toronto</h3>
+    <div class="sidebar pin-topleft z10 pad1">
+        <div class="sidebar-inner dark round">
+            <header class="pad1x space-bottom1">
+                <h2 class='fancy'>Feature density map</h2>
+                <h3 class="space-bottom2">Browse around the map to see the gridded density of selected amenities.</h3>
+                <h6 class="quiet">Source: <a href='http://osm.org'>OpenStreetMap</a></h6>
+            </header>
         </div>
     </div>
-    <div class='col12 clearfix'>
-        <div id='map'></div>
-        <div id='map-info-pane'>
-            <div id='mapillary-viewer' style="position: absolute; bottom: 0;width:500px;height:500px;display:none"></div>
-        </div>
-        <div style="position: absolute; bottom: 0;display:none">
-            <div class="pad1">
-                <img class="hidden" id="mapillary-image" width="300px" src="">
-            </div>
-            <div class='pill pad1 toggles'>
-                <a href='#' id='turn-restrictions' class='col12 button stroke'>Turn Restrictions <span class='micro' id='turn-restriction-count'></span></a>
-                <a href='#' id='oneways' class='col12 button stroke'>Oneways <span class='micro' id='oneway-count'></span></a>
-                <a href='#' id='mapillary' class='col12 button stroke'>Mapillary Street Photos</a>
-            </div>
-        </div>
-    </div>
+    <div id='map'></div>
     <script src="js/build.js"></script>
-    <script>
-      
-    </script>
 </body>
 
 </html>
